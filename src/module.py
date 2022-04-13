@@ -1,8 +1,12 @@
-import torch.empty
+import torch
+from torch import empty
 
 torch.set_grad_enabled(False)
 
 class Module(object):
+    def __call__(self, *args):
+        self.forward(*args)
+
     def forward(self, *inputs):
         """
         Implementation of the forward pass.

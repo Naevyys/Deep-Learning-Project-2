@@ -1,4 +1,5 @@
-import torch.empty
+import torch
+from torch import empty
 
 torch.set_grad_enabled(False)
 
