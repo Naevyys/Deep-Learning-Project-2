@@ -20,18 +20,23 @@ class Conv2d(Module):
         # Set layer parameters
         self.in_channels = in_channels
         self.out_channels = out_channels
-        self.kernel_size = kernel_size
-        self.stride = stride
+        if isinstance(kernel_size, int):
+            self.kernel_size = (kernel_size, kernel_size)
+        else:
+            self.kernel_size = kernel_size
+        if isinstance(stride, int):
+            self.stride = (stride, stride)
+        else:
+            self.stride = stride
         self.bias = bias
 
         # Initialize w
-        self.w = torch.randn(size=(self.out_channels, self.in_channels, self.kernel_size, self.kernel_size))
+        self.w = torch.randn(size=(self.out_channels, self.in_channels, self.kernel_size[0], self.kernel_size[1])).double()
 
         # TODO:
         # - Add assertions to verify input types and shapes
         # - Accept kernel sizes & strides as tuples
         # - Add more parameters if needed (padding, dilatation, ...)
-        # Note: Check whether in_channels argument is needed at all without the groups argument
 
     def __convolve(self, x):
         """
@@ -40,18 +45,18 @@ class Conv2d(Module):
         :return: Output of the convolution.
         """
 
+        batch_size, _, height, width = x.shape
+
+        unfolded = unfold(x, kernel_size=self.kernel_size, stride=self.stride)
+        wxb = self.w.view(self.out_channels, -1) @ unfolded + 0  # TODO: add bias
+        result = wxb.view(batch_size, self.out_channels, height - self.kernel_size[0] + 1, width - self.kernel_size[1] + 1)
+
+        return result
+
         # TODO:
-        # - Implement basic convolution. Algorithm:
-        #   - Unfold x
-        #   - Flatten kernels
-        #   - Multiply x and kernels appropriately
-        #   - Fold back to output shape (what is the general formula for the output shape?)
-        # - Multiplication for entire batch over all channels at once
         # - Account for bias
         # - Take stride into account
         # - Implement unit tests to validate implementation
-
-        raise NotImplementedError
 
     def forward(self, *inputs):
         return self.__convolve(*inputs)
