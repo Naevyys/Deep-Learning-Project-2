@@ -15,6 +15,20 @@ class Conv2d(Module):
         :param stride: Stride of the kernel, default is 1.
         :param bias: Whether to include a bias term or not. Default True.
         """
+
+        # Verify input types and shapes
+        assert isinstance(in_channels, int), "in_channels must be an integer!"
+        assert isinstance(out_channels, int), "out_channels must be an integer!"
+        assert isinstance(kernel_size, int) or isinstance(kernel_size, tuple), "kernel_size must be an int or a tuple!"
+        if isinstance(kernel_size, tuple):
+            assert len(kernel_size) == 2, "kernel_size tuple must be of length 2!"
+            assert isinstance(kernel_size[0], int) and isinstance(kernel_size[1], int), "kernel_size tuple value must be ints!"
+        assert isinstance(stride, int) or isinstance(stride, tuple), "stride must be an int or a tuple!"
+        if isinstance(stride, tuple):
+            assert len(stride) == 2, "stride tuple must be of length 2!"
+            assert isinstance(stride[0], int) and isinstance(stride[1], int), "stride tuple value must be ints!"
+        assert isinstance(bias, bool), "bias must be a boolean!"
+
         super().__init__()
 
         # Set layer parameters
@@ -34,7 +48,6 @@ class Conv2d(Module):
         self.w = torch.randn(size=(self.out_channels, self.in_channels, self.kernel_size[0], self.kernel_size[1])).double()
 
         # TODO:
-        # - Add assertions to verify input types and shapes
         # - Accept kernel sizes & strides as tuples
         # - Add more parameters if needed (padding, dilatation, ...)
 
