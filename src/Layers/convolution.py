@@ -50,9 +50,6 @@ class Conv2d(Module):
         else:
             self.bias = torch.zeros(size=(self.out_channels,)).double()
 
-        # TODO:
-        # - Add more parameters if needed (padding, dilatation, ...)
-
     def __convolve(self, x):
         """
         Applies kernels to tensor x.
@@ -64,13 +61,10 @@ class Conv2d(Module):
 
         unfolded = unfold(x, kernel_size=self.kernel_size, stride=self.stride)
         wxb = self.w.view(self.out_channels, -1) @ unfolded + self.bias.view(1, -1, 1)
-        result = wxb.view(batch_size, self.out_channels, height - self.kernel_size[0] + 1, width - self.kernel_size[1] + 1)
+        result = wxb.view(batch_size, self.out_channels, (height - self.kernel_size[0]) // self.stride[0] + 1,
+                          (width - self.kernel_size[1]) // self.stride[1] + 1)
 
         return result
-
-        # TODO:
-        # - Take stride into account
-        # - Implement unit tests to validate implementation
 
     def forward(self, *inputs):
         return self.__convolve(*inputs)
