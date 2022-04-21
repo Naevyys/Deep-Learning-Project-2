@@ -42,13 +42,15 @@ class Conv2d(Module):
             self.stride = (stride, stride)
         else:
             self.stride = stride
-        self.bias = bias
 
-        # Initialize w
+        # Initialize w and bias
         self.w = torch.randn(size=(self.out_channels, self.in_channels, self.kernel_size[0], self.kernel_size[1])).double()
+        if bias:
+            self.bias = torch.randn(size=(self.out_channels,)).double()
+        else:
+            self.bias = torch.zeros(size=(self.out_channels,)).double()
 
         # TODO:
-        # - Accept kernel sizes & strides as tuples
         # - Add more parameters if needed (padding, dilatation, ...)
 
     def __convolve(self, x):
@@ -61,13 +63,12 @@ class Conv2d(Module):
         batch_size, _, height, width = x.shape
 
         unfolded = unfold(x, kernel_size=self.kernel_size, stride=self.stride)
-        wxb = self.w.view(self.out_channels, -1) @ unfolded + 0  # TODO: add bias
+        wxb = self.w.view(self.out_channels, -1) @ unfolded + self.bias.view(1, -1, 1)
         result = wxb.view(batch_size, self.out_channels, height - self.kernel_size[0] + 1, width - self.kernel_size[1] + 1)
 
         return result
 
         # TODO:
-        # - Account for bias
         # - Take stride into account
         # - Implement unit tests to validate implementation
 
