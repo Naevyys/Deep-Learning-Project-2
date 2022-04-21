@@ -1,6 +1,5 @@
 from src.module import Module
-import torch
-from torch import empty
+from torch import empty, cat, arange
 from torch.nn.functional import fold, unfold
 
 
@@ -44,11 +43,15 @@ class Conv2d(Module):
             self.stride = stride
 
         # Initialize w and bias
-        self.w = torch.randn(size=(self.out_channels, self.in_channels, self.kernel_size[0], self.kernel_size[1])).double()
+        self.w = empty(size=(self.out_channels, self.in_channels, self.kernel_size[0], self.kernel_size[1])).double().random_() / 2**53
         if bias:
-            self.bias = torch.randn(size=(self.out_channels,)).double()
+            self.bias = empty(size=(self.out_channels,)).double().random_() / 2**53
         else:
-            self.bias = torch.zeros(size=(self.out_channels,)).double()
+            self.bias = empty(size=(self.out_channels,)).double().zero_()
+
+        # TODO:
+        # - Add initialisation parameter to regulate initialisation of weights and bias to avoid vanishing gradient
+        #   (waiting for answer to question to TAs)
 
     def __convolve(self, x):
         """
