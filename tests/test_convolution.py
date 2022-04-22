@@ -133,7 +133,6 @@ class TestConv2d(TestCase):
         in_channels = 3
         height = 6
         width = 10
-        x = torch.randn(size=(batch_size, in_channels, height, width)).double()
 
         # Convolution parameters for testing
         kernel_size = 2
@@ -155,7 +154,6 @@ class TestConv2d(TestCase):
         in_channels = 3
         height = 6
         width = 10
-        x = torch.randn(size=(batch_size, in_channels, height, width)).double()
 
         # Convolution parameters for testing
         kernel_size = 2
@@ -177,7 +175,6 @@ class TestConv2d(TestCase):
         in_channels = 3
         height = 6
         width = 10
-        x = torch.randn(size=(batch_size, in_channels, height, width)).double()
 
         # Convolution parameters for testing
         kernel_size = 2
@@ -199,7 +196,6 @@ class TestConv2d(TestCase):
         in_channels = 3
         height = 6
         width = 11
-        x = torch.randn(size=(batch_size, in_channels, height, width)).double()
 
         # Convolution parameters for testing
         kernel_size = 2
@@ -221,7 +217,6 @@ class TestConv2d(TestCase):
         in_channels = 3
         height = 6
         width = 11
-        x = torch.randn(size=(batch_size, in_channels, height, width)).double()
 
         # Convolution parameters for testing
         kernel_size = 2
@@ -243,7 +238,6 @@ class TestConv2d(TestCase):
         in_channels = 3
         height = 6
         width = 11
-        x = torch.randn(size=(batch_size, in_channels, height, width)).double()
 
         # Convolution parameters for testing
         kernel_size = 2
@@ -258,3 +252,39 @@ class TestConv2d(TestCase):
 
         # Compare expected and obtained results
         self.assertTrue(torch.allclose(expected, actual))
+
+    def test_backward_dl_dw_and_dl_db_are_correct(self):
+        # TODO but not for here, just putting this here as a note:
+        #  - Save output from previous layer in forward passes of loss and activation functions as well
+
+        # Parameters for test input tensor
+        batch_size = 10
+        in_channels = 3
+        height = 6
+        width = 11
+        x = torch.randn(size=(batch_size, in_channels, height, width)).double()  # Input to the layer
+
+        # Convolution parameters for testing
+        kernel_size = 2
+        out_channels = 3
+        bias = True
+        stride = 1
+        dilation = 1
+
+        # Compute dl_dw and dl_db using Conv2d.backward() (call Conv2d.forward() first to set self.x_previous_layer)
+        tested_conv2d = Conv2d(in_channels, out_channels, kernel_size, bias=bias, stride=stride, dilation=dilation)
+        tested_conv2d.forward(x)
+        dl_ds = ...  # Generate a random gradient with respect to the loss from the next layer.  # TODO
+        tested_conv2d.backward(dl_ds)
+        dl_dw_actual, dl_db_actual = tested_conv2d.dl_dw, tested_conv2d.dl_db
+
+        # compute expected dl_dw and dl_db using Tensor.backward() and calling Tensor.grad
+        # Have a look at torch.autograd.grad too
+        w, b = tested_conv2d.w, tested_conv2d.bias  # TODO: Keep if needed, otherwise remove
+        dl_dw_expected, dl_db_expected = ..., ...  # TODO
+
+        self.assertTrue(torch.allclose(dl_dw_expected, dl_dw_actual))
+        self.assertTrue(torch.allclose(dl_db_expected, dl_db_actual))
+
+    # def test_backward_zero_loss_gives_zero_gradient(self):
+    #     self.fail()  # TODO
