@@ -49,6 +49,11 @@ class Conv2d(Module):
         else:
             self.bias = empty(size=(self.out_channels,)).double().zero_()
 
+        # Initialize parameters that do not have values yet.
+        self.x_previous_layer = None
+        self.dl_dw = empty(size=self.w.size())
+        self.dl_db = empty(size=self.bias.size())
+
         # TODO:
         # - Add initialisation parameter to regulate initialisation of weights and bias to avoid vanishing gradient
         #   (waiting for answer to question to TAs)
@@ -59,6 +64,8 @@ class Conv2d(Module):
         :param x: Input tensor. Must be of size (batch_size, channels, height, width)
         :return: Output of the convolution.
         """
+
+        self.x_previous_layer = x  # Store output of previous layer during forward pass, to be used in the backward pass
 
         batch_size, _, height, width = x.shape
 
@@ -73,14 +80,17 @@ class Conv2d(Module):
         return self.__convolve(*inputs)
 
     def backward(self, *gradwrtoutput):
-        # we get dl_ds passed to the function as gradwrtoutput
-        # we can store x_previous_layer during the forward pass
+        # Note: the update is performed by the optimizer
 
-        # Algorithm:
-        # - Compute and return dl_dw and dl_db
-        # Update is performed by the optimizer (here sgd)
+        dl_ds = gradwrtoutput[0]
 
-        raise NotImplementedError  # TODO
+        if self.x_previous_layer is not None:  # No gradient if we don't have the output from the previous layer
+            self.dl_dw = dl_ds.view(-1, 1).mm(self.x_previous_layer.view(1, -1))
+            self.dl_db = dl_ds
+
+        dl_dx_previous_layer = self.w.t().mv(dl_ds)
+
+        return dl_dx_previous_layer
 
     def param(self):
         raise NotImplementedError  # TODO
