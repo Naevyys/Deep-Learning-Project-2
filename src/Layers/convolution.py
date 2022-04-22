@@ -73,6 +73,13 @@ class Conv2d(Module):
         return self.__convolve(*inputs)
 
     def backward(self, *gradwrtoutput):
+        # we get dl_ds passed to the function as gradwrtoutput
+        # we can store x_previous_layer during the forward pass
+
+        # Algorithm:
+        # - Compute and return dl_dw and dl_db
+        # Update is performed by the optimizer (here sgd)
+
         raise NotImplementedError  # TODO
 
     def param(self):
