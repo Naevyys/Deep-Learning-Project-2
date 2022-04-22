@@ -1,6 +1,5 @@
 from src.module import Module
-import torch
-from torch import empty
+from torch import empty, cat, arange
 
 
 class ReLU(Module):
@@ -15,7 +14,8 @@ class ReLU(Module):
         :return: Tensor after applying relu to each value of the tensor.
         """
         x = inputs[0]
-        return torch.where(x <= 0, torch.tensor(0, dtype=x.dtype), x)  # TODO: Change function used to match restrictions of the project
+        # If condition is satisfied, keep original value, else set to 0
+        return x.where(x > 0, empty(size=(1,)).float().zero_())  # Needs a tensor with a float for .where() method
 
     def backward(self, *gradwrtoutput):  # Compute derivative of activation
         """
@@ -25,4 +25,6 @@ class ReLU(Module):
         :return: Derivative of the activation.
         """
         x = gradwrtoutput[0]
-        return torch.where(x <= 0, torch.tensor(0, dtype=x.dtype), 1)  # TODO: Change function used to match restrictions of the project
+        x = x.where(x > 0, empty(size=(1,)).float().zero_())
+        x = x.where(x <= 0, empty(size=(1,)).float().fill_(1))
+        return x

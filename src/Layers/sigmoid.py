@@ -1,6 +1,5 @@
 from src.module import Module
-import torch
-from torch import empty
+from torch import empty, cat, arange
 
 
 class Sigmoid(Module):
@@ -15,7 +14,7 @@ class Sigmoid(Module):
         :return: Tensor after applying sigmoid to each value of the tensor.
         """
         x = inputs[0]
-        return 1 / (1 + torch.exp(-x))  # TODO: Change function used to match restrictions of the project
+        return 1 / (1 + (-x).exp())
 
     def backward(self, *gradwrtoutput):  # Compute derivative of activation
         """
@@ -24,4 +23,4 @@ class Sigmoid(Module):
         :return: Derivative of the activation.
         """
         x = gradwrtoutput[0]
-        return torch.exp(x) / (1 + torch.exp(x)) ** 2  # TODO: Change function used to match restrictions of the project
+        return x.exp() / (1 + x.exp()) ** 2
