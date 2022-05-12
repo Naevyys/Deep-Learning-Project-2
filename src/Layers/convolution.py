@@ -104,6 +104,9 @@ class Conv2d(Module):
         dl_dw = empty(size=self.w.size()).double().zero_()  # Initialize w gradient tensor with the same shape as w
         dl_db = empty(size=self.bias.size()).double().zero_()  # Initialize bias gradient tensor with same shape as bias
 
+        # Prepare the backward pass kernel according to stride
+        kernel = dilate(dl_ds, self.stride[0] - 1, self.stride[1] - 1)  # e.g. Dilate by 1 if stride is 2
+
         if self.x_previous_layer is not None:  # No gradient if we don't have the output from the previous layer
             # Shape of dl_ds: (B, out_channels, height_in, width_in)
             # Shape of x_previous_layer: (B, in_channels, height_out, width_out)
@@ -112,14 +115,13 @@ class Conv2d(Module):
             # If we have stride > 1, there might be some parts of the input that are not convoluted at all.
             # We assume that stride[a] <= kernel_size[a] for all a, otherwise we have to remove certain parts in the
             # middle of the input image, which is too complicated for us to handle.
-            # We also need to dilate the kernel to obtain the correct kernel to convolve over x
+
             x = self.x_previous_layer
             cut_off_height = (x.size()[-2] - self.kernel_size[0]) % self.stride[0]
             cut_off_width = (x.size()[-1] - self.kernel_size[1]) % self.stride[1]
             cut_off_height = - cut_off_height if cut_off_height > 0 else None
             cut_off_width = - cut_off_width if cut_off_width > 0 else None
             x = x[:, :, :cut_off_height, :cut_off_width]
-            kernel = dilate(dl_ds, self.stride[0] - 1, self.stride[1] - 1)  # e.g. Dilate by 1 if stride is 2
 
             # Algo for dl_dw
             # For i in channels of dl_ds (i,e, out_channels):
@@ -132,8 +134,8 @@ class Conv2d(Module):
                     for j in range(self.out_channels):
                         x_conv = x[batch:batch+1, i:i+1, :, :]
                         kernel_conv = kernel[batch:batch+1, j:j+1, :, :]
-                        backward_conv_bias = empty(size=(1,)).double().zero_()  # Change that to a scalar zero tensor  # dl_dw will be of size (in_channels, kernel_size_1, kernel_size_2)
-                        res = self.__convolve_backward(x_conv, kernel_conv, backward_conv_bias, 1)  # accumulate gradient over the entire batch
+                        zero_bias = empty(size=(1,)).double().zero_()
+                        res = self.__convolve_backward(x_conv, kernel_conv, zero_bias, 1)  # accumulate gradient over the entire batch
                         dl_dw[j:j + 1, i:i + 1, :, :] += res
 
             if self.has_bias:
@@ -142,9 +144,18 @@ class Conv2d(Module):
         self.dl_dw = dl_dw
         self.dl_db = dl_db
 
-        #dl_dx_previous_layer = self.w.t().mv(dl_ds)  # TODO
+        # Algo for dl_dx_previous_layer
+        # - Dilate dl_ds by stride - 1 == variable named kernel
+        # - Pad dl_ds by 1 + stride - 1 = stride
+        # - Turn w 180 degrees, i.e. flip up-down and left-right
+        # - Convolve upside-down w over padded and dilated dl_ds
 
-        #return dl_dx_previous_layer
+        dl_ds_processed = pad(kernel, self.stride[0], self.stride[0], self.stride[1], self.stride[1])
+        w_upside_down = self.w.flipud().fliplr()
+        zero_bias = empty(size=(1,)).double().zero_()
+        dl_dx_previous_layer = self.__convolve_backward(dl_ds_processed, w_upside_down, zero_bias, self.in_channels)
+
+        return dl_dx_previous_layer
 
     def param(self):
         raise NotImplementedError  # TODO
