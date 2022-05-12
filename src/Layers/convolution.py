@@ -156,8 +156,7 @@ class Conv2d(Module):
                         dl_dw[j:j + 1, i:i + 1, :, :] += res
 
             if self.has_bias:
-                # Compute dl_db
-                pass
+                dl_db[:] = dl_ds.sum(dim=(0, 2, 3))
 
         self.dl_dw = dl_dw
         self.dl_db = dl_db  # TODO

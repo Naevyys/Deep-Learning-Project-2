@@ -481,6 +481,147 @@ class TestConv2d(TestCase):
 
         self.assertTrue(torch.allclose(dl_dw_expected, dl_dw_actual))
 
+    def test_backward_dl_dw_with_bias_no_params(self):
+        # Parameters for test input tensor
+        batch_size = 10
+        in_channels = 3
+        height = 6
+        width = 11
+
+        # Convolution parameters for testing
+        kernel_size = 2
+        out_channels = 3
+        bias = True
+        stride = 1
+        dilation = 1
+
+        (dl_dw_actual, dl_db_actual), (dl_dw_expected, dl_db_expected) = run_backward_test_dl_dw_and_dl_db(batch_size, in_channels, height,
+                                                                                   width, kernel_size, out_channels,
+                                                                                   bias, stride, dilation)
+
+        self.assertTrue(torch.allclose(dl_dw_expected, dl_dw_actual))
+        self.assertTrue(torch.allclose(dl_db_expected, dl_db_actual))
+
+    def test_backward_dl_dw_with_bias_no_params_out_channels_greater_than_in_channels(self):
+        # Parameters for test input tensor
+        batch_size = 10
+        in_channels = 3
+        height = 6
+        width = 11
+
+        # Convolution parameters for testing
+        kernel_size = 2
+        out_channels = 4
+        bias = True
+        stride = 1
+        dilation = 1
+
+        (dl_dw_actual, _), (dl_dw_expected, _) = run_backward_test_dl_dw_and_dl_db(batch_size, in_channels, height,
+                                                                                   width, kernel_size, out_channels,
+                                                                                   bias, stride, dilation)
+
+        self.assertTrue(torch.allclose(dl_dw_expected, dl_dw_actual))
+
+    def test_backward_dl_dw_with_bias_no_params_out_channels_smaller_than_in_channels(self):
+        # Parameters for test input tensor
+        batch_size = 10
+        in_channels = 4
+        height = 6
+        width = 11
+
+        # Convolution parameters for testing
+        kernel_size = 2
+        out_channels = 3
+        bias = True
+        stride = 1
+        dilation = 1
+
+        (dl_dw_actual, _), (dl_dw_expected, _) = run_backward_test_dl_dw_and_dl_db(batch_size, in_channels, height,
+                                                                                   width, kernel_size, out_channels,
+                                                                                   bias, stride, dilation)
+
+        self.assertTrue(torch.allclose(dl_dw_expected, dl_dw_actual))
+
+    def test_backward_dl_dw_with_bias_no_params_asymmetric_kernel(self):
+        # Parameters for test input tensor
+        batch_size = 10
+        in_channels = 3
+        height = 6
+        width = 11
+
+        # Convolution parameters for testing
+        kernel_size = (2, 3)
+        out_channels = 3
+        bias = True
+        stride = 1
+        dilation = 1
+
+        (dl_dw_actual, _), (dl_dw_expected, _) = run_backward_test_dl_dw_and_dl_db(batch_size, in_channels, height,
+                                                                                   width, kernel_size, out_channels,
+                                                                                   bias, stride, dilation)
+
+        self.assertTrue(torch.allclose(dl_dw_expected, dl_dw_actual))
+
+    def test_backward_dl_dw_with_bias_with_int_stride(self):
+        # Parameters for test input tensor
+        batch_size = 10
+        in_channels = 3
+        height = 6
+        width = 11
+
+        # Convolution parameters for testing
+        kernel_size = 2
+        out_channels = 3
+        bias = True
+        stride = 2
+        dilation = 1
+
+        (dl_dw_actual, _), (dl_dw_expected, _) = run_backward_test_dl_dw_and_dl_db(batch_size, in_channels, height,
+                                                                                   width, kernel_size, out_channels,
+                                                                                   bias, stride, dilation)
+
+        self.assertTrue(torch.allclose(dl_dw_expected, dl_dw_actual))
+
+    def test_backward_dl_dw_with_bias_with_asymmetric_stride(self):
+        # Parameters for test input tensor
+        batch_size = 10
+        in_channels = 3
+        height = 6
+        width = 11
+
+        # Convolution parameters for testing
+        kernel_size = 3
+        out_channels = 3
+        bias = True
+        stride = (2, 3)
+        dilation = 1
+
+        (dl_dw_actual, _), (dl_dw_expected, _) = run_backward_test_dl_dw_and_dl_db(batch_size, in_channels, height,
+                                                                                   width, kernel_size, out_channels,
+                                                                                   bias, stride, dilation)
+
+        self.assertTrue(torch.allclose(dl_dw_expected, dl_dw_actual))
+
+    def test_backward_dl_dw_with_bias_with_border_case_kernel_stride_pairs(self):
+        # Parameters for test input tensor
+        batch_size = 10
+        in_channels = 3
+        height = 15
+        width = 10
+
+        # Convolution parameters for testing
+        kernel_size = 5
+        out_channels = 3
+        bias = True
+        stride = (3, 2)
+        dilation = 1
+
+        (dl_dw_actual, _), (dl_dw_expected, _) = run_backward_test_dl_dw_and_dl_db(batch_size, in_channels, height,
+                                                                                   width, kernel_size, out_channels,
+                                                                                   bias, stride, dilation)
+
+        self.assertTrue(torch.allclose(dl_dw_expected, dl_dw_actual))
+
     # def test_backward_zero_loss_gives_zero_gradient(self):
     #     self.fail()  # TODO
 
