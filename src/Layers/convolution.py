@@ -1,23 +1,7 @@
 from src.module import Module
 from torch import empty, cat, arange
 from torch.nn.functional import fold, unfold
-
-
-def dilate(t, d_h, d_w):
-    # Dilate the two last dimensions
-    size = list(t.size())
-    size[-2] = size[-2] * (d_h + 1) - d_h
-    size[-1] = size[-1] * (d_w + 1) - d_w
-    d = empty(size=size).double().zero_()
-    d_h += 1
-    d_w += 1
-    if len(size) == 2:
-        d[::d_h, ::d_w] = t
-    elif len(size) == 3:
-        d[:, ::d_h, ::d_w] = t
-    elif len(size) == 4:
-        d[:, :, ::d_h, ::d_w] = t
-    return d
+from src.utils import dilate, pad
 
 
 class Conv2d(Module):
@@ -72,10 +56,6 @@ class Conv2d(Module):
         self.dl_dw = empty(size=self.w.size())
         self.dl_db = empty(size=self.bias.size())
 
-        # TODO:
-        # - Add initialisation parameter to regulate initialisation of weights and bias to avoid vanishing gradient
-        #   (waiting for answer to question to TAs)
-
     def __convolve_forward(self, x):
         """
         Applies kernels to tensor x.
@@ -95,9 +75,11 @@ class Conv2d(Module):
 
     def __convolve_backward(self, x, w, b, out_channels):
         """
-        Applies kernel w and bias b to input tensor self.x_previous_layer of size (batch_size, channels, height, width).
+        Convolve kernel w with bias b to input tensor x of size (batch_size, channels, height, width).
         :param x: Input tensor. Must be of size (batch_size, channels, height, width)
-        # TODO
+        :param w: Kernel
+        :param b: Bias
+        :param out_channels: Number of output channels
         :return: Output of the convolution.
         """
 
@@ -134,10 +116,9 @@ class Conv2d(Module):
             x = self.x_previous_layer
             cut_off_height = (x.size()[-2] - self.kernel_size[0]) % self.stride[0]
             cut_off_width = (x.size()[-1] - self.kernel_size[1]) % self.stride[1]
-            if cut_off_height > 0:
-                x = x[:, :, :-cut_off_height, :]
-            if cut_off_width > 0:
-                x = x[:, :, :, :-cut_off_width]
+            cut_off_height = - cut_off_height if cut_off_height > 0 else None
+            cut_off_width = - cut_off_width if cut_off_width > 0 else None
+            x = x[:, :, :cut_off_height, :cut_off_width]
             kernel = dilate(dl_ds, self.stride[0] - 1, self.stride[1] - 1)  # e.g. Dilate by 1 if stride is 2
 
             # Algo for dl_dw
@@ -159,7 +140,7 @@ class Conv2d(Module):
                 dl_db[:] = dl_ds.sum(dim=(0, 2, 3))
 
         self.dl_dw = dl_dw
-        self.dl_db = dl_db  # TODO
+        self.dl_db = dl_db
 
         #dl_dx_previous_layer = self.w.t().mv(dl_ds)  # TODO
 
