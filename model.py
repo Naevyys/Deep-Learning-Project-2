@@ -1,5 +1,15 @@
 import torch  # Only to disable autograd
 from torch import empty
+import time
+import datetime
+
+from .src.Layers.convolution import Conv2d
+from .src.Layers.relu import ReLU
+from .src.Layers.sigmoid import Sigmoid 
+from .src.sequential import Sequential
+from .src.Loss_functions.mse import MSELoss
+from .src.sgd import SGD 
+from .src.utils import waiting_bar
 
 torch.set_grad_enabled(False)
 
@@ -9,24 +19,130 @@ class Model():
         Instantiates the model class.
         :return: None
         """
-        raise NotImplementedError
-        # takes no other input
+        
+        self.Conv2d = Conv2d
+        self.ReLU = ReLU
+        self.Sigmoid = Sigmoid
+        # TODO add Upsampling
+        self.Sequential = Sequential
+
+        self.lr = 1e-3 
+        self.eval_step = 5
+        self.best_model = None
+        # To store the training logs 
+        # First row: the epoch number
+        # Second row: the training error 
+        # Third row: the validation error
+        self.logs = [[], [], []]
+       
 
     def load_pretrained_model(self):
         """
         Loads best model from file bestmodel.pth
         :return: None
         """
-        raise NotImplementedError
+        # The path needed when used in testing mode 
+        #self.best_model = torch.load("Proj_287452_337635_288228/Miniproject_2/bestmodel.pth")
+        self.best_model = torch.load("bestmodel.pth") 
 
-    def train(self, train_input, train_target):
+    def train(self, train_input, train_target, num_epochs=20, batch_size=64):
         """
         Trains the model.
         :param train_input: Training data.
         :param train_target: Train targets.
         :return: None
         """
-        raise NotImplementedError
+        
+        # Custom train/validation split - Start by shuffling and sending to GPU is available 
+        idx = torch.randperm(train_input.size()[0])
+        train_input = train_input[idx, :, :, :]
+        train_target = train_target[idx, :, :, :]
+        # Then take the last images as validation set (w.r.t. proportion)
+        split = int(self.params["validation"] * train_input.size(0))
+        # Training data is standardized by the DataLoader 
+        val_input = (train_input[0:split] / 255)
+        val_target = (train_target[0:split] / 255)
+        train_input = (train_input[split:-1]) / 255
+        train_target = (train_target[split:-1] / 255)
+    
+        nb_images_train = len(train_input)
+        nb_images_val = len(val_input)
+
+        # Monitor time taken
+        start = time.time()
+        # The loop on the epochs
+        for epoch in range(0, num_epochs):
+            idx = torch.randperm(nb_images_train)
+            # Shuffle the dataset at each epoch TODO check if faster to call data_iter for each batch
+            for train_img, target_img in zip(torch.split(train_input, batch_size),
+                                             torch.split(train_target, batch_size)):
+                # TODO implement the equivalent
+                #loss = criterion(output, target_img)
+                #self.model.zero_grad()
+                #loss.backward()
+                #optimizer.step()
+                output = self.Sequential(train_img)
+                # TODO Do we really need the loss here?
+                loss = MSELoss.forward(output, target_img)
+                d_loss = MSELoss.backward(output, target_img)
+                # Compute the gradient
+                d_loss_d_params = self.Sequential.backward(d_loss)
+                self.optimise(d_loss_d_params)
+
+
+            # Evaluate the model every eval_step
+            if (epoch + 1) % self.eval_step == 0:
+                with torch.no_grad():
+                    eva_batch_size = 1000
+                    train_error = 0.
+                    val_error = 0.
+                    # Computing the number of split to compute the mean of the error of each batch
+                    if nb_images_train%eva_batch_size == 0:
+                        nb_split_train = nb_images_train//eva_batch_size
+                    else:
+                        nb_split_train = nb_images_train // eva_batch_size + 1
+
+                    if nb_images_val%eva_batch_size == 0:
+                        nb_split_val = nb_images_val//eva_batch_size
+                    else:
+                        nb_split_val = nb_images_val // eva_batch_size + 1
+
+                    train_zip = zip(torch.split(train_input, eva_batch_size),
+                                    torch.split(train_target, eva_batch_size))
+                    val_zip = zip(torch.split(val_input, eva_batch_size), torch.split(val_target, eva_batch_size))
+
+                    for train_img, target_img in train_zip:
+                        train_error += MSELoss.forward(self.Sequential(train_img), target_img)
+
+                    for val_img, val_img_target in val_zip:
+                        val_error +=MSELoss.forward(self.Sequential(val_img), val_img_target)
+
+                    train_error = train_error / nb_split_train
+                    val_error = val_error / nb_split_val
+
+                    self.logs[0].append(epoch)
+                    self.logs[1].append(train_error)
+                    self.logs[2].append(val_error)
+
+                waiting_bar(epoch, num_epochs, (self.logs[1][-1], self.logs[2][-1]))
+
+        # Save the model - path name contains the parameters + date
+        date = datetime.now().strftime("%d%m%Y_%H%M%S")
+        path = self.params["model"] + "_" + self.params["opti_type"] \
+               + "_" + str(self.params["error"]) + "_" + str(self.params["lr"]) + "_" + str(
+            self.params["batch_size"]) + "_" + date + ".pth"
+
+        torch.save(self.model, self.params["path_model"] + path)
+        # Save the logs as well
+        self.logs = torch.tensor(self.logs)
+        torch.save(self.logs, self.params["path_logs"] + path)
+
+        # Record and print time
+        end = time.time()
+        min = (end - start) // 60
+        sec = (end - start) % 60
+        print("\nTime taken for training: {:.0f} min {:.0f} s".format(min, sec))
+        del train_input, train_target, train_input, train_target
 
     def predict(self, test_input):
         """
@@ -34,4 +150,25 @@ class Model():
         :param test_input: Test input.
         :return: The prediction (torch.Tensor).
         """
-        raise NotImplementedError
+        out = self.Sequential(test_input.float()/255.0)
+        # Rescale the output between 0 and 255 - need to be optimised though 
+        min = out.min()
+        max = out.max()-min
+        return ((out - min ) / (max))*255
+
+    def optimise(self, d_loss_d_params): 
+        """
+        Run the stochastic gradient descent 
+        : d_loss_d_params: List of Tensor, the derivative with respect to loss
+        :return: None
+        """
+        # Will probably do something like this 
+        # TODO implement update_params, and modify params for each layergit 
+        for layer, d_params in zip(self.Sequential.layers, d_loss_d_params):
+            updated = []
+            for param, d_param in zip(layer.param(), d_params):
+                # Compute the updated parameters 
+                updated.append(param - self.lr*d_param) 
+            layer.update_param(updated)
+    
+    
