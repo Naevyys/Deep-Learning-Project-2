@@ -51,7 +51,7 @@ def run_backward_test_dl_dw_and_dl_db(batch_size, in_channels, height, width, ke
     loss.backward()
     dl_dw_expected = torch_conv.weight.grad
     dl_db_expected = torch_conv.bias.grad
-    grad_of_loss = torch.autograd.grad(criterion(output, y), output)  # Input to backward pass of our convolution
+    grad_of_loss = torch.autograd.grad(criterion(output, y), output)[0]  # Input to backward pass of our convolution
     torch.set_grad_enabled(False)  # Disabling autograd once we do not need it anymore
 
     # Compute dl_dw and dl_db using Conv2d.backward() (call Conv2d.forward() first to set self.x_previous_layer)
@@ -116,11 +116,11 @@ def run_backward_test_dl_dx_previous_layer_indirectly(batch_size, in_channels, h
     dl_db_expected = torch_conv.bias.grad
     dl_dw_expected2 = torch_conv2.weight.grad
     dl_db_expected2 = torch_conv2.bias.grad
-    grad_of_loss = torch.autograd.grad(criterion(output, y), output)  # Input to backward pass of our convolution
+    grad_of_loss = torch.autograd.grad(criterion(output, y), output)[0]  # Input to backward pass of our convolution
     torch.set_grad_enabled(False)  # Disabling autograd once we do not need it anymore
 
     # Compute dl_dw and dl_db using Conv2d.backward() (call Conv2d.forward() first to set self.x_previous_layer)
-    tested_conv2d2.backward(tested_conv2d.backward(grad_of_loss))
+    tested_conv2d.backward(tested_conv2d2.backward(grad_of_loss))
     dl_dw_actual = tested_conv2d.dl_dw
     dl_db_actual = tested_conv2d.dl_db
     dl_dw_actual2 = tested_conv2d2.dl_dw
@@ -689,7 +689,7 @@ class TestConv2d(TestCase):
         width = 10
 
         # Convolution 1 parameters for testing
-        kernel_size = 5
+        kernel_size = 3
         out_channels = 4
         bias = False  # Bias doesn't play a role for dl_dx_previous_layer_computation
         stride = 1
@@ -702,18 +702,14 @@ class TestConv2d(TestCase):
         stride2 = 1
         dilation2 = 1
 
-        dl_dws, dl_dbs, dl_dw2s, dl_db2s = run_backward_test_dl_dx_previous_layer_indirectly(batch_size, in_channels,
-                                                                                             height, width, kernel_size,
-                                                                                             out_channels, bias, stride,
-                                                                                             dilation, kernel_size2,
-                                                                                             out_channels2, bias2,
-                                                                                             stride2, dilation2)
-
+        dl_dws, _, dl_dw2s, _ = run_backward_test_dl_dx_previous_layer_indirectly(batch_size, in_channels, height,
+                                                                                  width, kernel_size, out_channels,
+                                                                                  bias, stride, dilation, kernel_size2,
+                                                                                  out_channels2, bias2, stride2,
+                                                                                  dilation2)
 
         self.assertTrue(torch.allclose(*dl_dws))
-        self.assertTrue(torch.allclose(*dl_dbs))
         self.assertTrue(torch.allclose(*dl_dw2s))
-        self.assertTrue(torch.allclose(*dl_db2s))
 
     def test_backward_dl_dx_previous_layer_asymmetric_kernel_no_stride(self):
         # Parameters for test input tensor
@@ -736,17 +732,14 @@ class TestConv2d(TestCase):
         stride2 = 1
         dilation2 = 1
 
-        dl_dws, dl_dbs, dl_dw2s, dl_db2s = run_backward_test_dl_dx_previous_layer_indirectly(batch_size, in_channels,
-                                                                                             height, width, kernel_size,
-                                                                                             out_channels, bias, stride,
-                                                                                             dilation, kernel_size2,
-                                                                                             out_channels2, bias2,
-                                                                                             stride2, dilation2)
+        dl_dws, _, dl_dw2s, _ = run_backward_test_dl_dx_previous_layer_indirectly(batch_size, in_channels, height,
+                                                                                  width, kernel_size, out_channels,
+                                                                                  bias, stride, dilation, kernel_size2,
+                                                                                  out_channels2, bias2, stride2,
+                                                                                  dilation2)
 
         self.assertTrue(torch.allclose(*dl_dws))
-        self.assertTrue(torch.allclose(*dl_dbs))
         self.assertTrue(torch.allclose(*dl_dw2s))
-        self.assertTrue(torch.allclose(*dl_db2s))
 
     def test_backward_dl_dx_previous_layer_int_kernel_int_stride(self):
         # Parameters for test input tensor
@@ -769,17 +762,14 @@ class TestConv2d(TestCase):
         stride2 = 2
         dilation2 = 1
 
-        dl_dws, dl_dbs, dl_dw2s, dl_db2s = run_backward_test_dl_dx_previous_layer_indirectly(batch_size, in_channels,
-                                                                                             height, width, kernel_size,
-                                                                                             out_channels, bias, stride,
-                                                                                             dilation, kernel_size2,
-                                                                                             out_channels2, bias2,
-                                                                                             stride2, dilation2)
+        dl_dws, _, dl_dw2s, _ = run_backward_test_dl_dx_previous_layer_indirectly(batch_size, in_channels, height,
+                                                                                  width, kernel_size, out_channels,
+                                                                                  bias, stride, dilation, kernel_size2,
+                                                                                  out_channels2, bias2, stride2,
+                                                                                  dilation2)
 
         self.assertTrue(torch.allclose(*dl_dws))
-        self.assertTrue(torch.allclose(*dl_dbs))
         self.assertTrue(torch.allclose(*dl_dw2s))
-        self.assertTrue(torch.allclose(*dl_db2s))
 
     def test_backward_dl_dx_previous_layer_int_kernel_asymmetric_stride(self):
         # Parameters for test input tensor
@@ -802,17 +792,14 @@ class TestConv2d(TestCase):
         stride2 = (3, 2)
         dilation2 = 1
 
-        dl_dws, dl_dbs, dl_dw2s, dl_db2s = run_backward_test_dl_dx_previous_layer_indirectly(batch_size, in_channels,
-                                                                                             height, width, kernel_size,
-                                                                                             out_channels, bias, stride,
-                                                                                             dilation, kernel_size2,
-                                                                                             out_channels2, bias2,
-                                                                                             stride2, dilation2)
+        dl_dws, _, dl_dw2s, _ = run_backward_test_dl_dx_previous_layer_indirectly(batch_size, in_channels, height,
+                                                                                  width, kernel_size, out_channels,
+                                                                                  bias, stride, dilation, kernel_size2,
+                                                                                  out_channels2, bias2, stride2,
+                                                                                  dilation2)
 
         self.assertTrue(torch.allclose(*dl_dws))
-        self.assertTrue(torch.allclose(*dl_dbs))
         self.assertTrue(torch.allclose(*dl_dw2s))
-        self.assertTrue(torch.allclose(*dl_db2s))
 
     # def test_backward_zero_loss_gives_zero_gradient(self):
     #     self.fail()  # TODO
@@ -821,5 +808,4 @@ class TestConv2d(TestCase):
     #  - Padding (see if we wanna implement that)
     # TODO backward pass tests:
     #  - No bias, with padding (only if padding implemented)
-    #  - Verify dl_dx output from the backward is correct
     #  - Verify zero loss gives zero gradient
