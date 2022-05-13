@@ -10,14 +10,14 @@ def run_forward_test(batch_size, in_channels, height, width, kernel_size, out_ch
 
     # Compute result of our implementation
     tested_conv2d = Conv2d(in_channels, out_channels, kernel_size, bias=bias, stride=stride, dilation=dilation)
-    actual = tested_conv2d.forward(x)
+    actual = tested_conv2d.forward(x)  # Returns a tuple with one element
 
     # Compute expected result
     weights = tested_conv2d.w  # Retrieve randomly initialized weights from convolution layer
     bias_vals = tested_conv2d.bias if bias else None  # Retrieve randomly initialized bias from convolution layer if any
     expected = conv2d(x, weights, bias=bias_vals, stride=stride, dilation=dilation)
 
-    return actual, expected
+    return actual[0], expected
 
 
 def run_backward_test_dl_dw_and_dl_db(batch_size, in_channels, height, width, kernel_size, out_channels, bias, stride, dilation):
@@ -90,7 +90,7 @@ def run_backward_test_dl_dx_previous_layer_indirectly(batch_size, in_channels, h
     # Initialize our convolutions and call forward
     tested_conv2d = Conv2d(in_channels, out_channels, kernel_size, bias=bias, stride=stride, dilation=dilation)
     tested_conv2d2 = Conv2d(out_channels, out_channels2, kernel_size2, bias=bias2, stride=stride2, dilation=dilation2)
-    tested_conv2d2.forward(tested_conv2d.forward(x))
+    tested_conv2d2.forward(*tested_conv2d.forward(x))
 
     # Initialize a torch convolution and call forward
     w, b = tested_conv2d.w, tested_conv2d.bias
@@ -120,7 +120,7 @@ def run_backward_test_dl_dx_previous_layer_indirectly(batch_size, in_channels, h
     torch.set_grad_enabled(False)  # Disabling autograd once we do not need it anymore
 
     # Compute dl_dw and dl_db using Conv2d.backward() (call Conv2d.forward() first to set self.x_previous_layer)
-    tested_conv2d.backward(tested_conv2d2.backward(grad_of_loss))
+    tested_conv2d.backward(*tested_conv2d2.backward(grad_of_loss))
     dl_dw_actual = tested_conv2d.dl_dw
     dl_db_actual = tested_conv2d.dl_db
     dl_dw_actual2 = tested_conv2d2.dl_dw

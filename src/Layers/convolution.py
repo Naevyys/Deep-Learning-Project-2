@@ -53,8 +53,8 @@ class Conv2d(Module):
 
         # Initialize parameters that do not have values yet.
         self.x_previous_layer = None
-        self.dl_dw = empty(size=self.w.size())
-        self.dl_db = empty(size=self.bias.size())
+        self.dl_dw = empty(size=self.w.size()).double().zero_()
+        self.dl_db = empty(size=self.bias.size()).double().zero_()
 
     def __convolve_forward(self, x):
         """
@@ -93,78 +93,84 @@ class Conv2d(Module):
         return result
 
     def forward(self, *inputs):
-        self.x_previous_layer = inputs[0]  # Store output of previous layer during forward pass, to be used in the backward pass
-        return self.__convolve_forward(self.x_previous_layer)
+        self.x_previous_layer = inputs  # Store output of previous layer during forward pass, to be used in the backward pass
+        outputs_forward = []
+        for i in self.x_previous_layer:
+            outputs_forward.append(self.__convolve_forward(i))
+        return tuple(outputs_forward)
 
     def backward(self, *gradwrtoutput):
         # Note: the update is performed by the optimizer
 
         assert self.x_previous_layer is not None, "Cannot perform backward pass if no forward pass was performed first!"
+        assert len(gradwrtoutput) == len(self.x_previous_layer), "Number of inputs to the backward pass does not match " \
+                                                                 "the number of inputs from the forward pass."
 
-        dl_ds = gradwrtoutput[0]  # This has the same shape as the output of our layer
+        dl_dx_previous_layer = []
 
-        dl_dw = empty(size=self.w.size()).double().zero_()  # Initialize w gradient tensor with the same shape as w
-        dl_db = empty(size=self.bias.size()).double().zero_()  # Initialize bias gradient tensor with same shape as bias
+        for (x, dl_ds) in zip(self.x_previous_layer, gradwrtoutput):
+            dl_dw = empty(size=self.w.size()).double().zero_()  # Initialize w gradient tensor with the same shape as w
+            dl_db = empty(size=self.bias.size()).double().zero_()  # Initialize bias gradient tensor with same shape as bias
 
-        # Prepare the backward pass kernel according to stride
-        kernel = dilate(dl_ds, self.stride[0] - 1, self.stride[1] - 1)  # e.g. Dilate by 1 if stride is 2
+            # Prepare the backward pass kernel according to stride
+            kernel = dilate(dl_ds, self.stride[0] - 1, self.stride[1] - 1)  # e.g. Dilate by 1 if stride is 2
 
 
-        # Shape of dl_ds: (B, out_channels, height_in, width_in)
-        # Shape of x_previous_layer: (B, in_channels, height_out, width_out)
+            # Shape of dl_ds: (B, out_channels, height_in, width_in)
+            # Shape of x_previous_layer: (B, in_channels, height_out, width_out)
 
-        # Handle stride
-        # If we have stride > 1, there might be some parts of the input that are not convoluted at all.
-        # We assume that stride[a] <= kernel_size[a] for all a, otherwise we have to remove certain parts in the
-        # middle of the input image, which is too complicated for us to handle.
+            # Handle stride
+            # If we have stride > 1, there might be some parts of the input that are not convoluted at all.
+            # We assume that stride[a] <= kernel_size[a] for all a, otherwise we have to remove certain parts in the
+            # middle of the input image, which is too complicated for us to handle.
 
-        x = self.x_previous_layer
-        cut_off_height = (x.size()[-2] - self.kernel_size[0]) % self.stride[0]
-        cut_off_width = (x.size()[-1] - self.kernel_size[1]) % self.stride[1]
-        cut_off_height = - cut_off_height if cut_off_height > 0 else None
-        cut_off_width = - cut_off_width if cut_off_width > 0 else None
-        x = x[:, :, :cut_off_height, :cut_off_width]
+            cut_off_height = (x.size()[-2] - self.kernel_size[0]) % self.stride[0]
+            cut_off_width = (x.size()[-1] - self.kernel_size[1]) % self.stride[1]
+            cut_off_height = - cut_off_height if cut_off_height > 0 else None
+            cut_off_width = - cut_off_width if cut_off_width > 0 else None
 
-        # Algo for dl_dw
-        # For i in channels of dl_ds (i,e, out_channels):
-        #   For j in channels of x_previous_layer (i.e. in_channels):
-        #      c = convolve dl_ds[:, i, :, :] with x_previous_layer[:, j, :, :]  # Shape of x is (1, 1, height_kernel, width_kernel)
-        #      dl_dw[j, i, :, :] = c
+            # Algo for dl_dw
+            # For i in channels of dl_ds (i,e, out_channels):
+            #   For j in channels of x_previous_layer (i.e. in_channels):
+            #      c = convolve dl_ds[:, i, :, :] with x_previous_layer[:, j, :, :]  # Shape of x is (1, 1, height_kernel, width_kernel)
+            #      dl_dw[j, i, :, :] = c
 
-        for batch in range(dl_ds.size()[0]):
-            for i in range(self.in_channels):
-                for j in range(self.out_channels):
-                    x_conv = x[batch:batch+1, i:i+1, :, :]
-                    kernel_conv = kernel[batch:batch+1, j:j+1, :, :]
-                    zero_bias = empty(size=(1,)).double().zero_()
-                    res = self.__convolve_backward(x_conv, kernel_conv, zero_bias, 1)  # accumulate gradient over the entire batch
-                    dl_dw[j:j + 1, i:i + 1, :, :] += res
+            for batch in range(dl_ds.size()[0]):
+                for i in range(self.in_channels):
+                    for j in range(self.out_channels):
+                        x_conv = x[batch:batch+1, i:i+1, :cut_off_height, :cut_off_width]
+                        kernel_conv = kernel[batch:batch+1, j:j+1, :, :]
+                        zero_bias = empty(size=(1,)).double().zero_()
+                        res = self.__convolve_backward(x_conv, kernel_conv, zero_bias, 1)  # accumulate gradient over the entire batch
+                        dl_dw[j:j + 1, i:i + 1, :, :] += res
 
-        if self.has_bias:
-            dl_db[:] = dl_ds.sum(dim=(0, 2, 3))
+            if self.has_bias:
+                dl_db[:] = dl_ds.sum(dim=(0, 2, 3))
 
-        self.dl_dw = dl_dw
-        self.dl_db = dl_db
+            # We accumulate the gradients
+            self.dl_dw += dl_dw
+            self.dl_db += dl_db
 
-        # Algo for dl_dx_previous_layer
-        # - Dilate dl_ds by stride - 1 == variable named kernel
-        # - Pad dl_ds by 1 + stride - 1 = stride
-        # - Turn w 180 degrees, i.e. flip up-down and left-right
-        # - Convolve upside-down w over padded and dilated dl_ds
+            # Algo for dl_dx_previous_layer
+            # - Dilate dl_ds by stride - 1 == variable named kernel
+            # - Pad dl_ds by 1 + stride - 1 = stride
+            # - Turn w 180 degrees, i.e. flip up-down and left-right
+            # - Convolve upside-down w over padded and dilated dl_ds
 
-        dl_ds_processed = pad(kernel, self.kernel_size[0] - 1, self.kernel_size[0] - 1, self.kernel_size[1] - 1, self.kernel_size[1] - 1)
-        dl_dx_previous_layer = empty(size=self.x_previous_layer.size()).double().zero_()
+            dl_ds_processed = pad(kernel, self.kernel_size[0] - 1, self.kernel_size[0] - 1, self.kernel_size[1] - 1, self.kernel_size[1] - 1)
+            dl_dx_p_l = empty(size=x.size()).double().zero_()
 
-        for batch in range(dl_ds.size()[0]):
-            for i in range(self.out_channels):
-                for j in range(self.in_channels):
-                    dl_ds_conv = dl_ds_processed[batch:batch+1, i:i+1, :, :]
-                    w_rotated = self.w[i:i+1, j:j+1, :, :]
-                    w_rotated[:, :, :, :] = w_rotated[0, 0, :, :].flipud().fliplr()
-                    zero_bias = empty(size=(1,)).double().zero_()
-                    res = self.__convolve_backward(dl_ds_conv, w_rotated, zero_bias, 1)
-                    dl_dx_previous_layer[batch:batch + 1, j:j + 1, :cut_off_height, :cut_off_width] += res
-        return dl_dx_previous_layer
+            for batch in range(dl_ds.size()[0]):
+                for i in range(self.out_channels):
+                    for j in range(self.in_channels):
+                        dl_ds_conv = dl_ds_processed[batch:batch+1, i:i+1, :, :]
+                        w_rotated = self.w[i:i+1, j:j+1, :, :]
+                        w_rotated[:, :, :, :] = w_rotated[0, 0, :, :].flipud().fliplr()
+                        zero_bias = empty(size=(1,)).double().zero_()
+                        res = self.__convolve_backward(dl_ds_conv, w_rotated, zero_bias, 1)
+                        dl_dx_p_l[batch:batch + 1, j:j + 1, :cut_off_height, :cut_off_width] += res
+            dl_dx_previous_layer.append(dl_dx_p_l)
+        return tuple(dl_dx_previous_layer)
 
     def param(self):
         raise NotImplementedError  # TODO
