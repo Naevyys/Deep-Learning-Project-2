@@ -1,7 +1,7 @@
 from src.module import Module
 from torch import empty, cat, arange
 from torch.nn.functional import fold, unfold
-from src.utils import dilate, pad
+from src.utils import conv2d, dilate, pad
 
 
 class Conv2d(Module):
@@ -56,47 +56,11 @@ class Conv2d(Module):
         self.dl_dw = empty(size=self.w.size()).double().zero_()
         self.dl_db = empty(size=self.bias.size()).double().zero_()
 
-    def __convolve_forward(self, x):
-        """
-        Applies kernels to tensor x.
-        :param x: Input tensor. Must be of size (batch_size, in_channels, height, width)
-        :return: Output of the convolution.
-        """
-
-        batch_size, _, height, width = x.shape
-
-        unfolded = unfold(x, kernel_size=self.kernel_size, stride=self.stride, dilation=self.dilation)
-        wxb = self.w.view(self.out_channels, -1) @ unfolded + self.bias.view(1, -1, 1)
-        result = wxb.view(batch_size, self.out_channels,
-                          (height - self.dilation[0] * (self.kernel_size[0] - 1) - 1) // self.stride[0] + 1,
-                          (width - self.dilation[1] * (self.kernel_size[1] - 1) - 1) // self.stride[1] + 1)
-
-        return result
-
-    def __convolve_backward(self, x, w, b, out_channels):
-        """
-        Convolve kernel w with bias b to input tensor x of size (batch_size, channels, height, width).
-        :param x: Input tensor. Must be of size (batch_size, channels, height, width)
-        :param w: Kernel
-        :param b: Bias
-        :param out_channels: Number of output channels
-        :return: Output of the convolution.
-        """
-
-        batch_size, _, height, width = x.size()
-        kernel_size = w.size()[-2:]
-
-        unfolded = unfold(x, kernel_size=kernel_size)
-        wxb = w.contiguous().view(out_channels, -1) @ unfolded + b.view(1, -1, 1)
-        result = wxb.view(batch_size, out_channels, height - kernel_size[0] + 1, width - kernel_size[1] + 1)
-
-        return result
-
     def forward(self, *inputs):
         self.x_previous_layer = inputs  # Store output of previous layer during forward pass, to be used in the backward pass
         outputs_forward = []
         for i in self.x_previous_layer:
-            outputs_forward.append(self.__convolve_forward(i))
+            outputs_forward.append(conv2d(i, self.w, bias=self.bias, stride=self.stride, dilation=self.dilation))
         return tuple(outputs_forward)
 
     def backward(self, *gradwrtoutput):
@@ -140,8 +104,7 @@ class Conv2d(Module):
                     for j in range(self.out_channels):
                         x_conv = x[batch:batch+1, i:i+1, :cut_off_height, :cut_off_width]
                         kernel_conv = kernel[batch:batch+1, j:j+1, :, :]
-                        zero_bias = empty(size=(1,)).double().zero_()
-                        res = self.__convolve_backward(x_conv, kernel_conv, zero_bias, 1)  # accumulate gradient over the entire batch
+                        res = conv2d(x_conv, kernel_conv)  # accumulate gradient over the entire batch
                         dl_dw[j:j + 1, i:i + 1, :, :] += res
 
             if self.has_bias:
@@ -166,8 +129,7 @@ class Conv2d(Module):
                         dl_ds_conv = dl_ds_processed[batch:batch+1, i:i+1, :, :]
                         w_rotated = self.w[i:i+1, j:j+1, :, :]
                         w_rotated[:, :, :, :] = w_rotated[0, 0, :, :].flipud().fliplr()
-                        zero_bias = empty(size=(1,)).double().zero_()
-                        res = self.__convolve_backward(dl_ds_conv, w_rotated, zero_bias, 1)
+                        res = conv2d(dl_ds_conv, w_rotated)
                         dl_dx_p_l[batch:batch + 1, j:j + 1, :cut_off_height, :cut_off_width] += res
             dl_dx_previous_layer.append(dl_dx_p_l)
         return tuple(dl_dx_previous_layer)

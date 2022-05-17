@@ -1,4 +1,36 @@
 from torch import empty
+from torch.nn.functional import fold, unfold
+
+
+def conv2d(x, weight, bias=None, stride=1, padding=0, dilation=1):
+    """
+    Applies weights and biases to tensor x.
+    :param x: Input tensor. Must be of size (batch_size, in_channels, height, width)
+    :param weight: Weights of size (kernel_size[0], kernel_size[1])
+    :param bias: Bias values of size (out_channels,)
+    :param stride: Stride value, tuple
+    :param padding: Padding value, int
+    :param dilation: Dilation value, positive int
+    :return: Output of the convolution.
+    """
+
+    # Extract useful data for the computation of shapes etc.
+    out_channels, _, kernel_size_0, kernel_size_1 = weight.shape
+    batch_size, _, height, width = x.shape
+
+    # Handle case of bias is None and int stride & dilation
+    bias = bias if bias is not None else empty(size=(out_channels,)).double().zero_()
+    stride = (stride, stride) if isinstance(stride, int) else stride
+    dilation = (dilation, dilation) if isinstance(dilation, int) else dilation
+
+    # Convolve
+    unfolded = unfold(x, kernel_size=(kernel_size_0, kernel_size_1), stride=stride, dilation=dilation)
+    wxb = weight.contiguous().view(out_channels, -1) @ unfolded + bias.view(1, -1, 1)
+    result = wxb.view(batch_size, out_channels, (height - dilation[0] * (kernel_size_0 - 1) - 1) // stride[0] + 1,
+                      (width - dilation[1] * (kernel_size_1 - 1) - 1) // stride[1] + 1)
+
+    return result
+
 
 def dilate(t, d_h, d_w):
     """
