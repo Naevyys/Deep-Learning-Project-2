@@ -1,5 +1,5 @@
 from torch import empty, cat, arange
-from module import Module
+from .module import Module
 
 class Sequential(Module):
 

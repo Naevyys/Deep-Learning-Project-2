@@ -2,13 +2,14 @@ import torch  # Only to disable autograd
 from torch import empty
 import time
 import datetime
+import os
+import pathlib
 
 from .src.Layers.convolution import Conv2d
 from .src.Layers.relu import ReLU
 from .src.Layers.sigmoid import Sigmoid 
 from .src.sequential import Sequential
 from .src.Loss_functions.mse import MSELoss
-from .src.sgd import SGD 
 from .src.utils import waiting_bar
 
 torch.set_grad_enabled(False)
@@ -44,7 +45,9 @@ class Model():
         """
         # The path needed when used in testing mode 
         #self.best_model = torch.load("Proj_287452_337635_288228/Miniproject_2/bestmodel.pth")
-        self.best_model = torch.load("bestmodel.pth") 
+        path = str(pathlib.Path(__file__).parent.resolve())
+        print("THE PATH IS: " + str(path))
+        self.best_model = torch.load(path+"/bestmodel.pth", map_location=lambda storage, loc: storage) 
 
     def train(self, train_input, train_target, num_epochs=20, batch_size=64):
         """
