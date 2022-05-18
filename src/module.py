@@ -32,3 +32,9 @@ class Module(object):
         :return: List of pairs of parameter and gradient tensors.
         """
         return []
+
+    def update_param(self):
+        """
+        The function will update the parameters of the sub modules having parameters. For instance convolution. 
+        """
+        pass 
