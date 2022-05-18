@@ -95,7 +95,7 @@ class Conv2d(Module):
         for batch in range(kernel_exp.size()[0]):
             kernel_conv = kernel_exp[batch]
             x_conv = x_exp[batch, :, :, :cut_off_height, :cut_off_width]
-            res = conv2d(x_conv, kernel_conv, dilation=self.stride)  # Dilate to handle stride
+            res = conv2d(x_conv, kernel_conv, dilation=self.stride, stride=self.dilation)  # Dilate to handle stride, stride to handle dilation
             dl_dw += res.transpose(0, 1)
 
         if self.has_bias:
@@ -117,7 +117,7 @@ class Conv2d(Module):
         dl_dx_previous_layer = empty(size=x.size()).double().zero_()
 
         w_rotated = self.w.transpose(0, 1).flipud().fliplr()
-        res = conv2d(kernel, w_rotated, padding=(self.kernel_size[0] - 1, self.kernel_size[1] - 1))
+        res = conv2d(kernel, w_rotated, padding=(self.kernel_size[0] * self.dilation[0] - self.dilation[0], self.kernel_size[1] * self.dilation[1] - self.dilation[1]), dilation=self.dilation)
         dl_dx_previous_layer[:, :, :cut_off_height, :cut_off_width] += res
         return dl_dx_previous_layer
 

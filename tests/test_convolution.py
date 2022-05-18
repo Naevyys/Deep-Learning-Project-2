@@ -681,6 +681,84 @@ class TestConv2d(TestCase):
         self.assertTrue(torch.allclose(*dl_dws))
         self.assertTrue(torch.allclose(*dl_dbs))
 
+    def test_backward_dl_dw_no_bias_with_int_dilation(self):
+        # Parameters for test input tensor
+        batch_size = 10
+        in_channels = 3
+        height = 6
+        width = 11
+
+        # Convolution parameters for testing
+        kernel_size = 3
+        out_channels = 3
+        bias = False
+        stride = 1
+        dilation = 2
+
+        dl_dws, _ = run_backward_test_dl_dw_and_dl_db(batch_size, in_channels, height, width, kernel_size,
+                                                           out_channels, bias, stride, dilation)
+
+        self.assertTrue(torch.allclose(*dl_dws))
+
+    def test_backward_dl_dw_no_bias_with_asymmetric_dilation(self):
+        # Parameters for test input tensor
+        batch_size = 10
+        in_channels = 3
+        height = 6
+        width = 11
+
+        # Convolution parameters for testing
+        kernel_size = 3
+        out_channels = 3
+        bias = False
+        stride = 1
+        dilation = (2, 3)
+
+        dl_dws, _ = run_backward_test_dl_dw_and_dl_db(batch_size, in_channels, height, width, kernel_size,
+                                                           out_channels, bias, stride, dilation)
+
+        self.assertTrue(torch.allclose(*dl_dws))
+
+    def test_backward_dl_dw_with_bias_with_int_dilation(self):
+        # Parameters for test input tensor
+        batch_size = 10
+        in_channels = 3
+        height = 6
+        width = 11
+
+        # Convolution parameters for testing
+        kernel_size = 2
+        out_channels = 3
+        bias = True
+        stride = 1
+        dilation = 2
+
+        dl_dws, dl_dbs = run_backward_test_dl_dw_and_dl_db(batch_size, in_channels, height, width, kernel_size,
+                                                           out_channels, bias, stride, dilation)
+
+        self.assertTrue(torch.allclose(*dl_dws))
+        self.assertTrue(torch.allclose(*dl_dbs))
+
+    def test_backward_dl_dw_with_bias_with_asymmetric_dilation(self):
+        # Parameters for test input tensor
+        batch_size = 10
+        in_channels = 3
+        height = 11
+        width = 6
+
+        # Convolution parameters for testing
+        kernel_size = 3
+        out_channels = 3
+        bias = True
+        stride = 1
+        dilation = (3, 2)
+
+        dl_dws, dl_dbs = run_backward_test_dl_dw_and_dl_db(batch_size, in_channels, height, width, kernel_size,
+                                                           out_channels, bias, stride, dilation)
+
+        self.assertTrue(torch.allclose(*dl_dws))
+        self.assertTrue(torch.allclose(*dl_dbs))
+
     def test_backward_dl_dx_previous_layer_int_kernel_no_stride(self):
         # Parameters for test input tensor
         batch_size = 10
