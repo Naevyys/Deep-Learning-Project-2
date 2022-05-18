@@ -121,7 +121,7 @@ class Conv2d(Module):
 
         dl_dx_previous_layer = empty(size=x.size()).double().zero_()
 
-        w_rotated = self.w.transpose(0, 1).flipud().fliplr()
+        w_rotated = self.w.transpose(0, 1).rot90(2, [-2, -1])
         res = conv2d(kernel, w_rotated, padding=((self.kernel_size[0] - self.padding[0]) * self.dilation[0] - self.dilation[0],
                                                  (self.kernel_size[1] - self.padding[1]) * self.dilation[1] - self.dilation[1]),
                      dilation=self.dilation)
