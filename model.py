@@ -25,7 +25,7 @@ class Model():
         self.ReLU = ReLU
         self.Sigmoid = Sigmoid
         # TODO add Upsampling
-        self.Sequential = Sequential(Conv2d(3,3,3,1,0,0,True), ReLU(), Conv2d(3,3,3,1,0,0,True), Sigmoid())
+        self.Sequential = Sequential(Conv2d(3,3,3,1,1,1,True), ReLU(), Conv2d(3,3,3,1,1,1,True), Sigmoid())
 
         self.lr = 1e-3 
         self.batch_size = None
