@@ -1,6 +1,5 @@
 from src.module import Module
 from torch import empty, cat, arange
-from torch.nn.functional import fold, unfold
 from src.utils import conv2d, dilate, pad
 
 
@@ -57,82 +56,77 @@ class Conv2d(Module):
         self.dl_db = empty(size=self.bias.size()).double().zero_()
 
     def forward(self, *inputs):
-        self.x_previous_layer = inputs  # Store output of previous layer during forward pass, to be used in the backward pass
-        outputs_forward = []
-        for i in self.x_previous_layer:
-            outputs_forward.append(conv2d(i, self.w, bias=self.bias, stride=self.stride, dilation=self.dilation))
-        return tuple(outputs_forward)
+        self.x_previous_layer = inputs[0]  # Store output of previous layer during forward pass, to be used in the backward pass
+        return conv2d(self.x_previous_layer, self.w, bias=self.bias, stride=self.stride, dilation=self.dilation)
 
     def backward(self, *gradwrtoutput):
         # Note: the update is performed by the optimizer
 
         assert self.x_previous_layer is not None, "Cannot perform backward pass if no forward pass was performed first!"
-        assert len(gradwrtoutput) == len(self.x_previous_layer), "Number of inputs to the backward pass does not match " \
-                                                                 "the number of inputs from the forward pass."
 
-        dl_dx_previous_layer = []
+        dl_ds = gradwrtoutput[0]
+        x = self.x_previous_layer
 
-        for (x, dl_ds) in zip(self.x_previous_layer, gradwrtoutput):
-            dl_dw = empty(size=self.w.size()).double().zero_()  # Initialize w gradient tensor with the same shape as w
-            dl_db = empty(size=self.bias.size()).double().zero_()  # Initialize bias gradient tensor with same shape as bias
+        dl_dw = empty(size=self.w.size()).double().zero_()  # Initialize w gradient tensor with the same shape as w
+        dl_db = empty(size=self.bias.size()).double().zero_()  # Initialize bias gradient tensor with same shape as bias
 
-            # Prepare the backward pass kernel according to stride
-            kernel = dilate(dl_ds, self.stride[0] - 1, self.stride[1] - 1)  # e.g. Dilate by 1 if stride is 2
+        # Shape of dl_ds: (B, out_channels, height_in, width_in)
+        # Shape of x_previous_layer: (B, in_channels, height_out, width_out)
 
+        # Handle stride
+        # If we have stride > 1, there might be some parts of the input that are not convoluted at all.
+        # We assume that stride[a] <= kernel_size[a] for all a, otherwise we have to remove certain parts in the
+        # middle of the input image, which is too complicated for us to handle.
 
-            # Shape of dl_ds: (B, out_channels, height_in, width_in)
-            # Shape of x_previous_layer: (B, in_channels, height_out, width_out)
+        cut_off_height = (x.size()[-2] - self.kernel_size[0]) % self.stride[0]
+        cut_off_width = (x.size()[-1] - self.kernel_size[1]) % self.stride[1]
+        cut_off_height = - cut_off_height if cut_off_height > 0 else None
+        cut_off_width = - cut_off_width if cut_off_width > 0 else None
 
-            # Handle stride
-            # If we have stride > 1, there might be some parts of the input that are not convoluted at all.
-            # We assume that stride[a] <= kernel_size[a] for all a, otherwise we have to remove certain parts in the
-            # middle of the input image, which is too complicated for us to handle.
+        # Algo for dl_dw
+        # For i in channels of dl_ds (i,e, out_channels):
+        #   For j in channels of x_previous_layer (i.e. in_channels):
+        #      c = convolve dl_ds[:, i, :, :] with x_previous_layer[:, j, :, :]  # Shape of x is (1, 1, height_kernel, width_kernel)
+        #      dl_dw[j, i, :, :] = c
 
-            cut_off_height = (x.size()[-2] - self.kernel_size[0]) % self.stride[0]
-            cut_off_width = (x.size()[-1] - self.kernel_size[1]) % self.stride[1]
-            cut_off_height = - cut_off_height if cut_off_height > 0 else None
-            cut_off_width = - cut_off_width if cut_off_width > 0 else None
+        x_exp = x.unsqueeze(2)
+        kernel_exp = dl_ds.unsqueeze(2)
 
-            # Algo for dl_dw
-            # For i in channels of dl_ds (i,e, out_channels):
-            #   For j in channels of x_previous_layer (i.e. in_channels):
-            #      c = convolve dl_ds[:, i, :, :] with x_previous_layer[:, j, :, :]  # Shape of x is (1, 1, height_kernel, width_kernel)
-            #      dl_dw[j, i, :, :] = c
+        for batch in range(kernel_exp.size()[0]):
+            kernel_conv = kernel_exp[batch]
+            x_conv = x_exp[batch, :, :, :cut_off_height, :cut_off_width]
+            res = conv2d(x_conv, kernel_conv, dilation=self.stride)  # Dilate to handle stride
+            dl_dw += res.transpose(0, 1)
 
-            for batch in range(dl_ds.size()[0]):
-                for i in range(self.in_channels):
-                    for j in range(self.out_channels):
-                        x_conv = x[batch:batch+1, i:i+1, :cut_off_height, :cut_off_width]
-                        kernel_conv = kernel[batch:batch+1, j:j+1, :, :]
-                        res = conv2d(x_conv, kernel_conv)  # accumulate gradient over the entire batch
-                        dl_dw[j:j + 1, i:i + 1, :, :] += res
+        if self.has_bias:
+            dl_db[:] = dl_ds.sum(dim=(0, 2, 3))
 
-            if self.has_bias:
-                dl_db[:] = dl_ds.sum(dim=(0, 2, 3))
+        # We accumulate the gradients
+        self.dl_dw += dl_dw
+        self.dl_db += dl_db
 
-            # We accumulate the gradients
-            self.dl_dw += dl_dw
-            self.dl_db += dl_db
+        # Prepare the backward pass kernel according to stride
+        kernel = dilate(dl_ds, self.stride[0] - 1, self.stride[1] - 1)  # e.g. Dilate by 1 if stride is 2
 
-            # Algo for dl_dx_previous_layer
-            # - Dilate dl_ds by stride - 1 == variable named kernel
-            # - Pad dl_ds by 1 + stride - 1 = stride
-            # - Turn w 180 degrees, i.e. flip up-down and left-right
-            # - Convolve upside-down w over padded and dilated dl_ds
+        # Algo for dl_dx_previous_layer
+        # - Dilate dl_ds by stride - 1 == variable named kernel
+        # - Pad dl_ds by 1 + stride - 1 = stride
+        # - Turn w 180 degrees, i.e. flip up-down and left-right
+        # - Convolve upside-down w over padded and dilated dl_ds
 
-            dl_ds_processed = pad(kernel, self.kernel_size[0] - 1, self.kernel_size[0] - 1, self.kernel_size[1] - 1, self.kernel_size[1] - 1)
-            dl_dx_p_l = empty(size=x.size()).double().zero_()
+        dl_ds_processed = pad(kernel, self.kernel_size[0] - 1, self.kernel_size[0] - 1, self.kernel_size[1] - 1, self.kernel_size[1] - 1)
+        dl_dx_previous_layer = empty(size=x.size()).double().zero_()
 
-            for batch in range(dl_ds.size()[0]):
-                for i in range(self.out_channels):
-                    for j in range(self.in_channels):
-                        dl_ds_conv = dl_ds_processed[batch:batch+1, i:i+1, :, :]
-                        w_rotated = self.w[i:i+1, j:j+1, :, :]
-                        w_rotated[:, :, :, :] = w_rotated[0, 0, :, :].flipud().fliplr()
-                        res = conv2d(dl_ds_conv, w_rotated)
-                        dl_dx_p_l[batch:batch + 1, j:j + 1, :cut_off_height, :cut_off_width] += res
-            dl_dx_previous_layer.append(dl_dx_p_l)
-        return tuple(dl_dx_previous_layer)
+        for batch in range(dl_ds.size()[0]):
+            for i in range(self.out_channels):
+                for j in range(self.in_channels):
+                    dl_ds_conv = dl_ds_processed[batch:batch+1, i:i+1, :, :]
+                    w_rotated = self.w[i:i+1, j:j+1, :, :]
+                    w_rotated[:, :, :, :] = w_rotated[0, 0, :, :].flipud().fliplr()
+                    res = conv2d(dl_ds_conv, w_rotated)
+                    dl_dx_previous_layer[batch:batch + 1, j:j + 1, :cut_off_height, :cut_off_width] += res
+        return dl_dx_previous_layer
 
     def param(self):
-        raise NotImplementedError  # TODO
+        return [(self.w, self.dl_dw), (self.bias, self.dl_db)]  # TODO: add x_previous_layer and dl_dx_previous_layer? TA said so but idk why
+
