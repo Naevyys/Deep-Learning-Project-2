@@ -98,37 +98,36 @@ class Model():
 
             # Evaluate the model every eval_step
             if (epoch + 1) % self.eval_step == 0:
-                with torch.no_grad():
-                    eva_batch_size = 1000
-                    train_error = 0.
-                    val_error = 0.
-                    # Computing the number of split to compute the mean of the error of each batch
-                    if nb_images_train%eva_batch_size == 0:
-                        nb_split_train = nb_images_train//eva_batch_size
-                    else:
-                        nb_split_train = nb_images_train // eva_batch_size + 1
+                eva_batch_size = 1000
+                train_error = 0.
+                val_error = 0.
+                # Computing the number of split to compute the mean of the error of each batch
+                if nb_images_train%eva_batch_size == 0:
+                    nb_split_train = nb_images_train//eva_batch_size
+                else:
+                    nb_split_train = nb_images_train // eva_batch_size + 1
 
-                    if nb_images_val%eva_batch_size == 0:
-                        nb_split_val = nb_images_val//eva_batch_size
-                    else:
-                        nb_split_val = nb_images_val // eva_batch_size + 1
+                if nb_images_val%eva_batch_size == 0:
+                    nb_split_val = nb_images_val//eva_batch_size
+                else:
+                    nb_split_val = nb_images_val // eva_batch_size + 1
 
-                    train_zip = zip(torch.split(train_input, eva_batch_size),
-                                    torch.split(train_target, eva_batch_size))
-                    val_zip = zip(torch.split(val_input, eva_batch_size), torch.split(val_target, eva_batch_size))
+                train_zip = zip(torch.split(train_input, eva_batch_size),
+                                torch.split(train_target, eva_batch_size))
+                val_zip = zip(torch.split(val_input, eva_batch_size), torch.split(val_target, eva_batch_size))
 
-                    for train_img, target_img in train_zip:
-                        train_error += MSELoss.forward(self.Sequential(train_img), target_img)
+                for train_img, target_img in train_zip:
+                    train_error += MSELoss.forward(self.Sequential(train_img), target_img)
 
-                    for val_img, val_img_target in val_zip:
-                        val_error +=MSELoss.forward(self.Sequential(val_img), val_img_target)
+                for val_img, val_img_target in val_zip:
+                    val_error +=MSELoss.forward(self.Sequential(val_img), val_img_target)
 
-                    train_error = train_error / nb_split_train
-                    val_error = val_error / nb_split_val
+                train_error = train_error / nb_split_train
+                val_error = val_error / nb_split_val
 
-                    self.logs[0].append(epoch)
-                    self.logs[1].append(train_error)
-                    self.logs[2].append(val_error)
+                self.logs[0].append(epoch)
+                self.logs[1].append(train_error)
+                self.logs[2].append(val_error)
 
                 waiting_bar(epoch, num_epochs, (self.logs[1][-1], self.logs[2][-1]))
 
