@@ -27,6 +27,7 @@ class Model():
         self.Sequential = Sequential
 
         self.lr = 1e-3 
+        self.batch_size = None
         self.eval_step = 5
         self.best_model = None
         # To store the training logs 
@@ -52,7 +53,8 @@ class Model():
         :param train_target: Train targets.
         :return: None
         """
-        
+        # Update the batch size 
+        self.batch_size = batch_size
         # Custom train/validation split - Start by shuffling and sending to GPU is available 
         idx = torch.randperm(train_input.size()[0])
         train_input = train_input[idx, :, :, :]
@@ -86,8 +88,9 @@ class Model():
                 loss = MSELoss.forward(output, target_img)
                 d_loss = MSELoss.backward(output, target_img)
                 # Compute the gradient
-                d_loss_d_params = self.Sequential.backward(d_loss)
-                self.optimise(d_loss_d_params)
+                self.Sequential.backward(d_loss)
+                # Compute the SGD and update the parameters
+                self.optimise(self.Sequential.param())
 
 
             # Evaluate the model every eval_step
@@ -156,19 +159,32 @@ class Model():
         max = out.max()-min
         return ((out - min ) / (max))*255
 
-    def optimise(self, d_loss_d_params): 
+    def optimise(self, list_params): 
         """
-        Run the stochastic gradient descent 
-        : d_loss_d_params: List of Tensor, the derivative with respect to loss
+        Run the stochastic gradient descent and update the parameters of the model
+        : list_params: List of list of tuples of tensors (weights, gradient)
+            First list contains the layers, the second list contains tuples (weights, gradient)
+            of the different parameters of the given layer
         :return: None
         """
-        # Will probably do something like this 
-        # TODO implement update_params, and modify params for each layergit 
-        for layer, d_params in zip(self.Sequential.layers, d_loss_d_params):
-            updated = []
-            for param, d_param in zip(layer.param(), d_params):
-                # Compute the updated parameters 
-                updated.append(param - self.lr*d_param) 
-            layer.update_param(updated)
+        updated_params = []
+        # Iterate on the layer's parameters  
+        for layer_param in list_params:
+            # Check whether the list is empty 
+            if layer_param:
+                intermediate_param = []
+                # Iterate on the parameters of the layer
+                for param, gradient in layer_param:
+                    # Use the update rule from the stochastic descend gradient
+                    # Thre gradient already contains the sum of all input from the batch
+                    # We need to normalise (or get the average) by dividing by the batch size
+                    param -= self.lr*gradient/self.batch_size
+                    intermediate_param.append(param)
+                updated_params.append(intermediate_param)
+            else:
+                # If no parameters, just return an empty list
+                updated_params.append([])
+        # Assign the newly calculated parameters
+        self.Sequential.update_param(updated_params)
     
     

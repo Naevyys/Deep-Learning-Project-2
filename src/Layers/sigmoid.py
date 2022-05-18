@@ -30,3 +30,6 @@ class Sigmoid(Module):
         dl_dx = gradwrtoutput[0]
         dl_ds = self.__derivative(self.x_previous_layer) * dl_dx if self.x_previous_layer is not None else dl_dx
         return dl_ds
+
+    
+    

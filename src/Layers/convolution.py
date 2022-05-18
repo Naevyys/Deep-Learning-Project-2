@@ -158,4 +158,20 @@ class Conv2d(Module):
         return dl_dx_previous_layer
 
     def param(self):
-        raise NotImplementedError  # TODO
+        """
+        Returns a list of pairs of parameters. For the the convolution it returns first the weights and their derivatives
+        and, then the second element of the list is the bias and its derivative. 
+        : returns: The list of parameter described above. 
+        """
+        return [(self.w, self.dl_dw), (self.bias, self.dl_db)]
+
+    def update_param(self, updated_params):
+        """
+        Simply updates the parameters of the convolution after the SGD.
+        :params updated_params: A list containing first the weights, and second the bias
+        :return: None
+        """
+        self.w = updated_params[0]
+        self.bias = updated_params[0]
+
+    
