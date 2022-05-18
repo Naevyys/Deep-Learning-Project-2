@@ -5,7 +5,7 @@ from ...src.utils import conv2d, dilate, pad
 
 class Conv2d(Module):
 
-    def __init__(self, in_channels, out_channels, kernel_size, stride=1, dilation=1, bias=True):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, bias=True):
         """
         Initialize 2d convolution layer. We consider in our implementation that groups=1.
         :param in_channels: Number of input channels
@@ -27,6 +27,10 @@ class Conv2d(Module):
         if isinstance(stride, tuple):
             assert len(stride) == 2, "stride tuple must be of length 2!"
             assert isinstance(stride[0], int) and isinstance(stride[1], int), "stride tuple value must be ints!"
+        assert isinstance(padding, int) or isinstance(padding, tuple), "padding must be an int or a tuple!"
+        if isinstance(padding, tuple):
+            assert len(padding) == 2, "padding tuple must be of length 2!"
+            assert isinstance(padding[0], int) and isinstance(padding[1], int), "padding tuple value must be ints!"
         assert isinstance(dilation, int) or isinstance(dilation, tuple), "dilation must be an int or a tuple!"
         if isinstance(dilation, tuple):
             assert len(dilation) == 2, "dilation tuple must be of length 2!"
@@ -40,6 +44,7 @@ class Conv2d(Module):
         self.out_channels = out_channels
         self.kernel_size = (kernel_size, kernel_size) if isinstance(kernel_size, int) else kernel_size
         self.stride = (stride, stride) if isinstance(stride, int) else stride
+        self.padding = (padding, padding) if isinstance(padding, int) else padding
         self.dilation = (dilation, dilation) if isinstance(dilation, int) else dilation
         self.has_bias = bias
 
@@ -57,7 +62,7 @@ class Conv2d(Module):
 
     def forward(self, *inputs):
         self.x_previous_layer = inputs[0]  # Store output of previous layer during forward pass, to be used in the backward pass
-        return conv2d(self.x_previous_layer, self.w, bias=self.bias, stride=self.stride, dilation=self.dilation)
+        return conv2d(self.x_previous_layer, self.w, bias=self.bias, stride=self.stride, padding=self.padding, dilation=self.dilation)
 
     def backward(self, *gradwrtoutput):
         # Note: the update is performed by the optimizer
@@ -95,7 +100,7 @@ class Conv2d(Module):
         for batch in range(kernel_exp.size()[0]):
             kernel_conv = kernel_exp[batch]
             x_conv = x_exp[batch, :, :, :cut_off_height, :cut_off_width]
-            res = conv2d(x_conv, kernel_conv, dilation=self.stride, stride=self.dilation)  # Dilate to handle stride, stride to handle dilation
+            res = conv2d(x_conv, kernel_conv, dilation=self.stride, stride=self.dilation, padding=self.padding)  # Dilate to handle stride, stride to handle dilation
             dl_dw += res.transpose(0, 1)
 
         if self.has_bias:
@@ -117,7 +122,9 @@ class Conv2d(Module):
         dl_dx_previous_layer = empty(size=x.size()).double().zero_()
 
         w_rotated = self.w.transpose(0, 1).flipud().fliplr()
-        res = conv2d(kernel, w_rotated, padding=(self.kernel_size[0] * self.dilation[0] - self.dilation[0], self.kernel_size[1] * self.dilation[1] - self.dilation[1]), dilation=self.dilation)
+        res = conv2d(kernel, w_rotated, padding=((self.kernel_size[0] - self.padding[0]) * self.dilation[0] - self.dilation[0],
+                                                 (self.kernel_size[1] - self.padding[1]) * self.dilation[1] - self.dilation[1]),
+                     dilation=self.dilation)
         dl_dx_previous_layer[:, :, :cut_off_height, :cut_off_width] += res
         return dl_dx_previous_layer
 
