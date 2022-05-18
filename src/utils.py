@@ -8,9 +8,9 @@ def conv2d(x, weight, bias=None, stride=1, padding=0, dilation=1):
     :param x: Input tensor. Must be of size (batch_size, in_channels, height, width)
     :param weight: Weights of size (kernel_size[0], kernel_size[1])
     :param bias: Bias values of size (out_channels,)
-    :param stride: Stride value, tuple
-    :param padding: Padding value, int
-    :param dilation: Dilation value, positive int
+    :param stride: Stride value, int or tuple
+    :param padding: Padding value, int or tuple
+    :param dilation: Dilation value, positive int or tuple
     :return: Output of the convolution.
     """
 
@@ -22,12 +22,13 @@ def conv2d(x, weight, bias=None, stride=1, padding=0, dilation=1):
     bias = bias if bias is not None else empty(size=(out_channels,)).double().zero_()
     stride = (stride, stride) if isinstance(stride, int) else stride
     dilation = (dilation, dilation) if isinstance(dilation, int) else dilation
+    padding = (padding, padding) if isinstance(padding, int) else padding
 
     # Convolve
-    unfolded = unfold(x, kernel_size=(kernel_size_0, kernel_size_1), stride=stride, dilation=dilation)
+    unfolded = unfold(x, kernel_size=(kernel_size_0, kernel_size_1), stride=stride, dilation=dilation, padding=padding)
     wxb = weight.contiguous().view(out_channels, -1) @ unfolded + bias.view(1, -1, 1)
-    result = wxb.view(batch_size, out_channels, (height - dilation[0] * (kernel_size_0 - 1) - 1) // stride[0] + 1,
-                      (width - dilation[1] * (kernel_size_1 - 1) - 1) // stride[1] + 1)
+    result = wxb.view(batch_size, out_channels, (height + 2 * padding[0] - dilation[0] * (kernel_size_0 - 1) - 1) // stride[0] + 1,
+                      (width + 2 * padding[1] - dilation[1] * (kernel_size_1 - 1) - 1) // stride[1] + 1)
 
     return result
 
