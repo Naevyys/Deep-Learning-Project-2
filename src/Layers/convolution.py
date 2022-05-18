@@ -114,17 +114,11 @@ class Conv2d(Module):
         # - Turn w 180 degrees, i.e. flip up-down and left-right
         # - Convolve upside-down w over padded and dilated dl_ds
 
-        dl_ds_processed = pad(kernel, self.kernel_size[0] - 1, self.kernel_size[0] - 1, self.kernel_size[1] - 1, self.kernel_size[1] - 1)
         dl_dx_previous_layer = empty(size=x.size()).double().zero_()
 
-        for batch in range(dl_ds.size()[0]):
-            for i in range(self.out_channels):
-                for j in range(self.in_channels):
-                    dl_ds_conv = dl_ds_processed[batch:batch+1, i:i+1, :, :]
-                    w_rotated = self.w[i:i+1, j:j+1, :, :]
-                    w_rotated[:, :, :, :] = w_rotated[0, 0, :, :].flipud().fliplr()
-                    res = conv2d(dl_ds_conv, w_rotated)
-                    dl_dx_previous_layer[batch:batch + 1, j:j + 1, :cut_off_height, :cut_off_width] += res
+        w_rotated = self.w.transpose(0, 1).flipud().fliplr()
+        res = conv2d(kernel, w_rotated, padding=(self.kernel_size[0] - 1, self.kernel_size[1] - 1))
+        dl_dx_previous_layer[:, :, :cut_off_height, :cut_off_width] += res
         return dl_dx_previous_layer
 
     def param(self):
