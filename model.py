@@ -1,4 +1,4 @@
-import torch
+import torch  # Only to disable autograd
 from torch import empty
 
 torch.set_grad_enabled(False)
