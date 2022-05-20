@@ -144,3 +144,7 @@ class Conv2d(Module):
         """
         self.w = updated_params[0]
         self.bias = updated_params[0]
+
+    def zero_grad(self):
+        self.dl_dw = empty(size=self.w.size()).double().zero_()
+        self.dl_db = empty(size=self.bias.size()).double().zero_()
