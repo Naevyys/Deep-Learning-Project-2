@@ -1,6 +1,6 @@
 from src.module import Module
 from convolution import Conv2d
-from upsample import Upsample
+from upsample import Upsample2d
 
 
 class Upsampling(Module):
@@ -18,7 +18,7 @@ class Upsampling(Module):
         assert set(convargs.keys()).issubset({"stride", "dilation", "bias"}), "Please pass only arguments in the set " \
                                                                               "{stride, dilation, bias} to the Conv2d!"
 
-        self.upsample = Upsample(factor)
+        self.upsample = Upsample2d(factor)
 
         # Compute the kernel size and padding of Conv2d to have the output size match the output size of Upsample
         kernel_size = ...  # TODO

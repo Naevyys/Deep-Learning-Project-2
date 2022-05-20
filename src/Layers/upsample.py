@@ -2,7 +2,7 @@ from src.module import Module
 from torch import empty, cat, arange
 
 
-class Upsample(Module):
+class Upsample2d(Module):
 
     def __init__(self, factor):
         """
@@ -13,10 +13,20 @@ class Upsample(Module):
         self.factor = factor
 
     def forward(self, *inputs):
+        """
+        Upsample the inputs
+        :param inputs: Tensor of size (batch_size, channels, height, width)
+        :return: Upsampled input
+        """
 
-        # upsample
+        self.x_previous_layer = inputs[0]
 
-        raise NotImplementedError
+        out_shape = list(self.x_previous_layer.shape)  # (batch_size, in_channels, height, width)
+        out_shape[-2], out_shape[-1] = out_shape[-2] * self.factor, out_shape[-1] * self.factor
+        x = self.x_previous_layer.unsqueeze(-2).unsqueeze(-1)
+        x = x.tile((1, 1, 1, self.factor, 1, self.factor))
+        x = x.reshape(out_shape)
+        return x
 
     def backward(self, *gradwrtoutput):
 
