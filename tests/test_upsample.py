@@ -7,9 +7,10 @@ from torch.nn.functional import upsample
 def run_forward_test(factor, in_size):
     # Initialize random input
     x = torch.randn(size=in_size).double()
+    x_torch_upsample = x.unsqueeze(0) if len(in_size) == 3 else x  # Torch upsample expects a 4D tensor for 2D upsample
 
     # Compute expected output from torch
-    expected = upsample(x, scale_factor=factor)  # This one expects a mini_batch dim
+    expected = upsample(x_torch_upsample, scale_factor=factor)
 
     # Compute actual output
     actual = Upsample2d(factor).forward(x)
@@ -62,7 +63,7 @@ class TestUpsample2d(TestCase):
         out = run_forward_test(factor, in_size)
         self.assertTrue(torch.allclose(*out))
 
-    """def test_forward_factor_2_no_batch_size_dim(self):
+    def test_forward_factor_2_no_batch_size_dim(self):
         factor = 2
         in_channels = 3
         height = 7
@@ -70,4 +71,4 @@ class TestUpsample2d(TestCase):
         in_size = (in_channels, height, width)  # No batch size dimension
 
         out = run_forward_test(factor, in_size)
-        self.assertTrue(torch.allclose(*out))"""
+        self.assertTrue(torch.allclose(*out))

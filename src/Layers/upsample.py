@@ -21,11 +21,11 @@ class Upsample2d(Module):
 
         self.x_previous_layer = inputs[0]
 
-        out_shape = list(self.x_previous_layer.shape)  # (batch_size, in_channels, height, width)
+        out_shape = list(self.x_previous_layer.shape)  # (batch_size, channels, height, width) or (channels, height, width)
         out_shape[-2], out_shape[-1] = out_shape[-2] * self.factor, out_shape[-1] * self.factor
         x = self.x_previous_layer.unsqueeze(-2).unsqueeze(-1)
-        x = x.tile((1, 1, 1, self.factor, 1, self.factor))
-        x = x.reshape(out_shape)
+        x = x.tile((1, 1, 1, self.factor, 1, self.factor))  # Also works without batch dimension
+        x = x.reshape(out_shape)  # (batch_size, channels, height*factor, width*factor) or same without batch_size
         return x
 
     def backward(self, *gradwrtoutput):
