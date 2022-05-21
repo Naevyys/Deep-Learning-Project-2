@@ -12,7 +12,7 @@ class Upsample2d(Module):
         """
 
         self.factor = factor
-        self.in_shape = None
+        self.n_channels = None
 
     def forward(self, *inputs):
         """
