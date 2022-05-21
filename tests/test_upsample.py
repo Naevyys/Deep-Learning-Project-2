@@ -18,7 +18,14 @@ def run_forward_test(factor, in_size):
     return actual, expected
 
 
+def run_backward_test(factor, in_size):
+    raise NotImplementedError
+
+
 class TestUpsample2d(TestCase):
+
+    ######################################  FORWARD  ######################################
+
     def test_forward_factor_1(self):
         factor = 1
         batch_size = 10
@@ -72,3 +79,20 @@ class TestUpsample2d(TestCase):
 
         out = run_forward_test(factor, in_size)
         self.assertTrue(torch.allclose(*out))
+
+    ######################################  BACKWARD  ######################################
+
+    def test_backward_factor_1(self):
+        self.fail("Not implemented yet")
+
+    def test_backward_factor_2(self):
+        self.fail("Not implemented yet")
+
+    def test_backward_factor_3(self):
+        self.fail("Not implemented yet")
+
+    def test_backward_factor_2_batch_size_1(self):
+        self.fail("Not implemented yet")
+
+    def test_backward_factor_2_no_batch_size_dim(self):
+        self.fail("Not implemented yet")
