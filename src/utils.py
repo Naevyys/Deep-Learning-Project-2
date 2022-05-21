@@ -5,7 +5,7 @@ from torch.nn.functional import fold, unfold
 def conv2d(x, weight, bias=None, stride=1, padding=0, dilation=1):
     """
     Applies weights and biases to tensor x.
-    :param x: Input tensor. Must be of size (batch_size, in_channels, height, width)
+    :param x: Input tensor. Must be of size (batch_size, in_channels, height, width) or (in_channels, height, width)
     :param weight: Weights of size (kernel_size[0], kernel_size[1])
     :param bias: Bias values of size (out_channels,)
     :param stride: Stride value, int or tuple
@@ -16,7 +16,11 @@ def conv2d(x, weight, bias=None, stride=1, padding=0, dilation=1):
 
     # Extract useful data for the computation of shapes etc.
     out_channels, _, kernel_size_0, kernel_size_1 = weight.shape
-    batch_size, _, height, width = x.shape
+    height, width = x.shape[-2:]
+
+    is_3D = True if len(x.shape) == 3 else False  # Handle case if input has no batch size
+    if is_3D:
+        x = x.unsqueeze(0)
 
     # Handle case of bias is None and int stride & dilation
     bias = bias if bias is not None else empty(size=(out_channels,)).double().zero_()
@@ -27,8 +31,11 @@ def conv2d(x, weight, bias=None, stride=1, padding=0, dilation=1):
     # Convolve
     unfolded = unfold(x, kernel_size=(kernel_size_0, kernel_size_1), stride=stride, dilation=dilation, padding=padding)
     wxb = weight.contiguous().view(out_channels, -1) @ unfolded + bias.view(1, -1, 1)
-    result = wxb.view(batch_size, out_channels, (height + 2 * padding[0] - dilation[0] * (kernel_size_0 - 1) - 1) // stride[0] + 1,
+    result = wxb.view(-1, out_channels, (height + 2 * padding[0] - dilation[0] * (kernel_size_0 - 1) - 1) // stride[0] + 1,
                       (width + 2 * padding[1] - dilation[1] * (kernel_size_1 - 1) - 1) // stride[1] + 1)
+
+    if is_3D:
+        result = result.squeeze(dim=0)
 
     return result
 

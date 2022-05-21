@@ -61,6 +61,10 @@ class Conv2d(Module):
         self.dl_db = empty(size=self.bias.size()).double().zero_()
 
     def forward(self, *inputs):
+        # *inputs gives a variable inputs which is a tuple of all nameless parameters passed to the method.
+        # We assume that we only receive a single tensor of size (batch_size, in_channels, height, width) or
+        # (in_channels, height, width), which we extract with inputs[0]
+
         self.x_previous_layer = inputs[0]  # Store output of previous layer during forward pass, to be used in the backward pass
         return conv2d(self.x_previous_layer, self.w, bias=self.bias, stride=self.stride, padding=self.padding, dilation=self.dilation)
 
@@ -71,12 +75,11 @@ class Conv2d(Module):
 
         dl_ds = gradwrtoutput[0]
         x = self.x_previous_layer
+        is_3D = True if len(x.shape) == 3 else False
 
-        dl_dw = empty(size=self.w.size()).double().zero_()  # Initialize w gradient tensor with the same shape as w
-        dl_db = empty(size=self.bias.size()).double().zero_()  # Initialize bias gradient tensor with same shape as bias
-
-        # Shape of dl_ds: (B, out_channels, height_in, width_in)
-        # Shape of x_previous_layer: (B, in_channels, height_out, width_out)
+        # Shape of dl_ds: (B, out_channels, height_in, width_in) or (out_channels, height_in, width_in)
+        # Shape of x_previous_layer: (B, in_channels, height_out, width_out) or (in_channels, height_out, width_out)
+        # Note: Either they both have a batch size or they both have no batch size
 
         # Handle stride
         # If we have stride > 1, there might be some parts of the input that are not convoluted at all.
@@ -94,21 +97,17 @@ class Conv2d(Module):
         #      c = convolve dl_ds[:, i, :, :] with x_previous_layer[:, j, :, :]  # Shape of x is (1, 1, height_kernel, width_kernel)
         #      dl_dw[j, i, :, :] = c
 
-        x_exp = x.unsqueeze(2)
-        kernel_exp = dl_ds.unsqueeze(2)
-
-        for batch in range(kernel_exp.size()[0]):
-            kernel_conv = kernel_exp[batch]
-            x_conv = x_exp[batch, :, :, :cut_off_height, :cut_off_width]
-            res = conv2d(x_conv, kernel_conv, dilation=self.stride, stride=self.dilation, padding=self.padding)  # Dilate to handle stride, stride to handle dilation
-            dl_dw += res.transpose(0, 1)
-
-        if self.has_bias:
-            dl_db[:] = dl_ds.sum(dim=(0, 2, 3))
+        if is_3D:  # Note: x and dl_ds have the same batch size dimension (otherwise our computations make no sense)
+            x = x.unsqueeze(0)
+            dl_ds = dl_ds.unsqueeze(0)
+        x_conv = x.transpose(0, 1)
+        kernel_conv = dl_ds.transpose(0, 1)
+        x_conv = x_conv[:, :, :cut_off_height, :cut_off_width]
 
         # We accumulate the gradients
-        self.dl_dw += dl_dw
-        self.dl_db += dl_db
+        self.dl_dw += conv2d(x_conv, kernel_conv, dilation=self.stride, stride=self.dilation, padding=self.padding).transpose(0, 1)  # Dilate to handle stride, stride to handle dilation
+        if self.has_bias:
+            self.dl_db += dl_ds.sum(dim=(0, 2, 3))
 
         # Prepare the backward pass kernel according to stride
         kernel = dilate(dl_ds, self.stride[0] - 1, self.stride[1] - 1)  # e.g. Dilate by 1 if stride is 2
@@ -119,13 +118,17 @@ class Conv2d(Module):
         # - Turn w 180 degrees, i.e. flip up-down and left-right
         # - Convolve upside-down w over padded and dilated dl_ds
 
-        dl_dx_previous_layer = empty(size=x.size()).double().zero_()
+        dl_dx_previous_layer = empty(size=self.x_previous_layer.size()).double().zero_()
+        dl_dx_previous_layer_view = dl_dx_previous_layer.view(-1, self.x_previous_layer.size(dim=-3),  # Handle presence or absence of batch_size dimensions
+                                                              self.x_previous_layer.size(dim=-2),
+                                                              self.x_previous_layer.size(dim=-1))
 
         w_rotated = self.w.transpose(0, 1).rot90(2, [-2, -1])
         res = conv2d(kernel, w_rotated, padding=((self.kernel_size[0] - self.padding[0]) * self.dilation[0] - self.dilation[0],
                                                  (self.kernel_size[1] - self.padding[1]) * self.dilation[1] - self.dilation[1]),
                      dilation=self.dilation)
-        dl_dx_previous_layer[:, :, :cut_off_height, :cut_off_width] += res
+        dl_dx_previous_layer_view[:, :, :cut_off_height, :cut_off_width] += res
+
         return dl_dx_previous_layer
 
     def param(self):
