@@ -1,6 +1,6 @@
 from src.module import Module
 from convolution import Conv2d
-from upsample import Upsample2d
+from nearest_neighbor_upsample import NNUpsample2d
 
 
 class Upsampling(Module):
@@ -18,7 +18,7 @@ class Upsampling(Module):
         assert set(convargs.keys()).issubset({"stride", "dilation", "bias"}), "Please pass only arguments in the set " \
                                                                               "{stride, dilation, bias} to the Conv2d!"
 
-        self.upsample = Upsample2d(factor)
+        self.upsample = NNUpsample2d(factor)
 
         # Compute the kernel size and padding of Conv2d to have the output size match the output size of Upsample
         kernel_size = ...  # TODO
@@ -26,6 +26,20 @@ class Upsampling(Module):
 
         self.conv2d = Conv2d(in_channels, out_channels, kernel_size, padding=padding, **convargs)
         self.x_previous_layer = None
+
+        # Output shape of Upsample + Conv2d is (
+        #   batch_size,
+        #   out_channels,
+        #   (height*factor + 2*padding[0] - dilation[0] * (kernel_size[0] - 1) - 1) // stride[0] + 1
+        #   (width*factor + 2*padding[1] - dilation[1] * (kernel_size[1] - 1) - 1) // stride[1] + 1
+        # )
+
+        # Output shape of TransposeConv2d is (
+        #   batch_size,
+        #   out_channels,
+        #   (height - 1) * stride[0] - 2*padding[0] + dilation[0] * (kernel_size[0] - 1) + output_padding[0] + 1
+        #   (width - 1) * stride[1] - 2*padding[1] + dilation[1] * (kernel_size[1] - 1) + output_padding[1] + 1
+        # )
 
     def forward(self, *inputs):
         self.x_previous_layer = inputs[0]
