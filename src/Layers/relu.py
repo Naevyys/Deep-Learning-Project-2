@@ -14,10 +14,10 @@ class ReLU(Module):
         :param inputs: Tensor, input of the layer.
         :return: Tensor after applying relu to each value of the tensor.
         """
-        x = inputs[0]
+        x = inputs[0].double()
         self.x_previous_layer = x
         # If condition is satisfied, keep original value, else set to 0
-        return x.where(x > 0, empty(size=(1,)).float().zero_())  # Needs a tensor with a float for .where() method
+        return x.where(x > 0, empty(size=(1,)).double().zero_())  # Needs a tensor with a double for .where() method
 
     def __derivative(self, x):  # Compute derivative of activation
         """
@@ -26,8 +26,8 @@ class ReLU(Module):
         :param x: Tensor w.r.t. which we compute the derivative.
         :return: Derivative of the activation.
         """
-        x = x.where(x > 0, empty(size=(1,)).float().zero_())
-        x = x.where(x <= 0, empty(size=(1,)).float().fill_(1))
+        x = x.where(x > 0, empty(size=(1,)).double().zero_())
+        x = x.where(x <= 0, empty(size=(1,)).double().fill_(1))
         return x
 
     def backward(self, *gradwrtoutput):
