@@ -1,9 +1,9 @@
 from unittest import TestCase
 import torch
-from src.Layers.upsample import Upsample2d
+from src.Layers.nearest_neighbor_upsample import NNUpsample2d
 from src.Layers.convolution import Conv2d
 from src.Loss_functions.mse import MSELoss
-from torch.nn.functional import upsample
+from torch.nn.functional import interpolate
 
 
 def run_forward_test(factor, in_size):
@@ -12,10 +12,10 @@ def run_forward_test(factor, in_size):
     x_torch_upsample = x.unsqueeze(0) if len(in_size) == 3 else x  # Torch upsample expects a 4D tensor for 2D upsample
 
     # Compute expected output from torch
-    expected = upsample(x_torch_upsample, scale_factor=factor)
+    expected = interpolate(x_torch_upsample, scale_factor=factor)
 
     # Compute actual output
-    actual = Upsample2d(factor).forward(x)
+    actual = NNUpsample2d(factor).forward(x)
 
     return actual, expected
 
@@ -32,7 +32,7 @@ def run_backward_test(factor, batch_size, in_channels, height, width, kernel_siz
 
     # Initialise one conv and one upsample with my implementation
     conv = Conv2d(in_channels, out_channels, kernel_size, bias=bias)
-    up = Upsample2d(factor)
+    up = NNUpsample2d(factor)
 
     output = up.forward(conv.forward(x))  # Get output
     mse = MSELoss()

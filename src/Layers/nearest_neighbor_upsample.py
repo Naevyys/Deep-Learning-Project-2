@@ -3,7 +3,7 @@ from torch import empty, cat, arange
 from src.utils import conv2d
 
 
-class Upsample2d(Module):
+class NNUpsample2d(Module):
 
     def __init__(self, factor):
         """
