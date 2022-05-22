@@ -6,7 +6,11 @@ from torch.nn.functional import conv2d
 
 def run_forward_test(batch_size, in_channels, height, width, kernel_size, out_channels, bias, stride, dilation, padding):
     # Initialize random test input tensor
-    x = torch.randn(size=(batch_size, in_channels, height, width)).double()
+    if batch_size is None:
+        in_size = (in_channels, height, width)
+    else:
+        in_size = (batch_size, in_channels, height, width)
+    x = torch.randn(size=in_size).double()
 
     # Compute result of our implementation
     tested_conv2d = Conv2d(in_channels, out_channels, kernel_size, bias=bias, stride=stride, dilation=dilation, padding=padding)
@@ -27,9 +31,16 @@ def run_backward_test_dl_dw_and_dl_db(batch_size, in_channels, height, width, ke
     dilation_tup = (dilation, dilation) if isinstance(dilation, int) else dilation
 
     # Initialize random inputs and targets
-    x = torch.randn(size=(batch_size, in_channels, height, width)).double()  # Input
-    y = torch.randn(size=(batch_size, out_channels, (height + 2 * padding_tup[0] - dilation_tup[0] * (kernel_size_tup[0] - 1) - 1) // stride_tup[0] + 1,
-                          (width + 2 * padding_tup[1] - dilation_tup[1] * (kernel_size_tup[1] - 1) - 1) // stride_tup[1] + 1)).double()  # Target
+    if batch_size is None:
+        in_size = (in_channels, height, width)
+        out_size = (out_channels, (height + 2 * padding_tup[0] - dilation_tup[0] * (kernel_size_tup[0] - 1) - 1) // stride_tup[0] + 1,
+                   (width + 2 * padding_tup[1] - dilation_tup[1] * (kernel_size_tup[1] - 1) - 1) // stride_tup[1] + 1)
+    else:
+        in_size = (batch_size, in_channels, height, width)
+        out_size = (batch_size, out_channels, (height + 2 * padding_tup[0] - dilation_tup[0] * (kernel_size_tup[0] - 1) - 1) // stride_tup[0] + 1,
+                   (width + 2 * padding_tup[1] - dilation_tup[1] * (kernel_size_tup[1] - 1) - 1) // stride_tup[1] + 1)
+    x = torch.randn(size=in_size).double()  # Input
+    y = torch.randn(size=out_size).double()  # Target
 
     # Initialize our convolution and call forward
     tested_conv2d = Conv2d(in_channels, out_channels, kernel_size, bias=bias, stride=stride, dilation=dilation, padding=padding)
@@ -82,11 +93,23 @@ def run_backward_test_dl_dx_previous_layer_indirectly(batch_size, in_channels, h
     dilation2_tup = (dilation2, dilation2) if isinstance(dilation2, int) else dilation2
 
     # Initialize random inputs and targets
-    size_in = (batch_size, in_channels, height, width)
-    size_out1 = (batch_size, out_channels, (height + 2 * padding_tup[0] - dilation_tup[0] * (kernel_size_tup[0] - 1) - 1) // stride_tup[0] + 1,
-                          (width + 2 * padding_tup[1] - dilation_tup[1] * (kernel_size_tup[1] - 1) - 1) // stride_tup[1] + 1)
-    size_out2 = (batch_size, out_channels2, (size_out1[2] + 2 * padding2_tup[0] - dilation2_tup[0] * (kernel_size2_tup[0] - 1) - 1) // stride2_tup[0] + 1,
-                          (size_out1[3] + 2 * padding2_tup[1] - dilation2_tup[1] * (kernel_size2_tup[1] - 1) - 1) // stride2_tup[1] + 1)
+    if batch_size is None:
+        size_in = (in_channels, height, width)
+        size_out1 = (out_channels,
+                     (height + 2 * padding_tup[0] - dilation_tup[0] * (kernel_size_tup[0] - 1) - 1) // stride_tup[
+                         0] + 1,
+                     (width + 2 * padding_tup[1] - dilation_tup[1] * (kernel_size_tup[1] - 1) - 1) // stride_tup[1] + 1)
+        size_out2 = (out_channels2,
+                     (size_out1[-2] + 2 * padding2_tup[0] - dilation2_tup[0] * (kernel_size2_tup[0] - 1) - 1) //
+                     stride2_tup[0] + 1,
+                     (size_out1[-1] + 2 * padding2_tup[1] - dilation2_tup[1] * (kernel_size2_tup[1] - 1) - 1) //
+                     stride2_tup[1] + 1)
+    else:
+        size_in = (batch_size, in_channels, height, width)
+        size_out1 = (batch_size, out_channels, (height + 2 * padding_tup[0] - dilation_tup[0] * (kernel_size_tup[0] - 1) - 1) // stride_tup[0] + 1,
+                              (width + 2 * padding_tup[1] - dilation_tup[1] * (kernel_size_tup[1] - 1) - 1) // stride_tup[1] + 1)
+        size_out2 = (batch_size, out_channels2, (size_out1[-2] + 2 * padding2_tup[0] - dilation2_tup[0] * (kernel_size2_tup[0] - 1) - 1) // stride2_tup[0] + 1,
+                              (size_out1[-1] + 2 * padding2_tup[1] - dilation2_tup[1] * (kernel_size2_tup[1] - 1) - 1) // stride2_tup[1] + 1)
     x = torch.randn(size=size_in).double()  # Input
     y = torch.randn(size=size_out2).double()  # Target
 
@@ -480,6 +503,50 @@ class TestConv2d(TestCase):
         stride = 1
         dilation = 1
         padding = (2, 1)
+
+        # Run the test
+        actual, expected = run_forward_test(batch_size, in_channels, height, width, kernel_size, out_channels, bias,
+                                            stride, dilation, padding)
+
+        # Compare expected and obtained results
+        self.assertTrue(torch.allclose(expected, actual))
+
+    def test_forward_with_int_kernel_with_bias_with_batch_size_1(self):
+        # Parameters for test input tensor
+        batch_size = 1
+        in_channels = 3
+        height = 4
+        width = 5
+
+        # Convolution parameters for testing
+        kernel_size = 2
+        out_channels = 3
+        bias = True
+        stride = 1
+        dilation = 1
+        padding = 0
+
+        # Run the test
+        actual, expected = run_forward_test(batch_size, in_channels, height, width, kernel_size, out_channels, bias,
+                                            stride, dilation, padding)
+
+        # Compare expected and obtained results
+        self.assertTrue(torch.allclose(expected, actual))
+
+    def test_forward_with_int_kernel_with_bias_no_batch_size(self):
+        # Parameters for test input tensor
+        batch_size = None
+        in_channels = 3
+        height = 4
+        width = 5
+
+        # Convolution parameters for testing
+        kernel_size = 2
+        out_channels = 3
+        bias = True
+        stride = 1
+        dilation = 1
+        padding = 0
 
         # Run the test
         actual, expected = run_forward_test(batch_size, in_channels, height, width, kernel_size, out_channels, bias,
@@ -1011,6 +1078,48 @@ class TestConv2d(TestCase):
         self.assertTrue(torch.allclose(*dl_dws))
         self.assertTrue(torch.allclose(*dl_dw2s))
 
+    def test_backward_dl_dw_with_bias_batch_size_1(self):
+        # Parameters for test input tensor
+        batch_size = 1
+        in_channels = 3
+        height = 6
+        width = 11
+
+        # Convolution parameters for testing
+        kernel_size = 2
+        out_channels = 3
+        bias = True
+        stride = 1
+        dilation = 1
+        padding = 0
+
+        dl_dws, dl_dbs = run_backward_test_dl_dw_and_dl_db(batch_size, in_channels, height, width, kernel_size,
+                                                           out_channels, bias, stride, dilation, padding)
+
+        self.assertTrue(torch.allclose(*dl_dws))
+        self.assertTrue(torch.allclose(*dl_dbs))
+
+    def test_backward_dl_dw_with_bias_no_batch_size_dim(self):
+        # Parameters for test input tensor
+        batch_size = None
+        in_channels = 3
+        height = 6
+        width = 11
+
+        # Convolution parameters for testing
+        kernel_size = 2
+        out_channels = 3
+        bias = True
+        stride = 1
+        dilation = 1
+        padding = 0
+
+        dl_dws, dl_dbs = run_backward_test_dl_dw_and_dl_db(batch_size, in_channels, height, width, kernel_size,
+                                                           out_channels, bias, stride, dilation, padding)
+
+        self.assertTrue(torch.allclose(*dl_dws))
+        self.assertTrue(torch.allclose(*dl_dbs))
+
     def test_backward_dl_dx_previous_layer_asymmetric_kernel_no_stride(self):
         # Parameters for test input tensor
         batch_size = 10
@@ -1170,6 +1279,74 @@ class TestConv2d(TestCase):
 
         self.assertTrue(torch.allclose(*dl_dws))
         self.assertTrue(torch.allclose(*dl_dw2s))
+
+    def test_backward_dl_dx_previous_layer_int_kernel_with_bias_batch_size_1(self):
+        # Parameters for test input tensor
+        batch_size = 1
+        in_channels = 3
+        height = 15
+        width = 10
+
+        # Convolution 1 parameters for testing
+        kernel_size = 3
+        out_channels = 4
+        bias = True
+        stride = 1
+        dilation = 1
+        padding = 0
+
+        # Convolution 2 parameters for testing
+        kernel_size2 = 2
+        out_channels2 = 5
+        bias2 = True
+        stride2 = 1
+        dilation2 = 1
+        padding2 = 0
+
+        dl_dws, dl_dbs, dl_dw2s, dl_db2s = run_backward_test_dl_dx_previous_layer_indirectly(batch_size, in_channels, height,
+                                                                                  width, kernel_size, out_channels,
+                                                                                  bias, stride, dilation, padding, kernel_size2,
+                                                                                  out_channels2, bias2, stride2,
+                                                                                  dilation2, padding2)
+
+        self.assertTrue(torch.allclose(*dl_dws))
+        self.assertTrue(torch.allclose(*dl_dw2s))
+        self.assertTrue(torch.allclose(*dl_dbs))
+        self.assertTrue(torch.allclose(*dl_db2s))
+
+    def test_backward_dl_dx_previous_layer_int_kernel_with_bias_no_batch_size_dim(self):
+        # Parameters for test input tensor
+        batch_size = None
+        in_channels = 3
+        height = 15
+        width = 10
+
+        # Convolution 1 parameters for testing
+        kernel_size = 3
+        out_channels = 4
+        bias = True
+        stride = 1
+        dilation = 1
+        padding = 0
+
+        # Convolution 2 parameters for testing
+        kernel_size2 = 2
+        out_channels2 = 5
+        bias2 = True
+        stride2 = 1
+        dilation2 = 1
+        padding2 = 0
+
+        dl_dws, dl_dbs, dl_dw2s, dl_db2s = run_backward_test_dl_dx_previous_layer_indirectly(batch_size, in_channels, height,
+                                                                                  width, kernel_size, out_channels,
+                                                                                  bias, stride, dilation, padding, kernel_size2,
+                                                                                  out_channels2, bias2, stride2,
+                                                                                  dilation2, padding2)
+
+        self.assertTrue(torch.allclose(*dl_dws))
+        self.assertTrue(torch.allclose(*dl_dw2s))
+        self.assertTrue(torch.allclose(*dl_dbs))
+        self.assertTrue(torch.allclose(*dl_db2s))
 
     # def test_backward_zero_loss_gives_zero_gradient(self):
     #     self.fail()  # TODO
