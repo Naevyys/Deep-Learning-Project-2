@@ -33,8 +33,15 @@ class Module(object):
         """
         return []
 
-    def update_param(self):
+    def update_param(self, updated_params):
         """
         The function will update the parameters of the sub modules having parameters. For instance convolution. 
         """
         pass 
+
+    def zero_grad(self):
+        """
+        Zero the gradients of the parameters of the module.
+        :return: None
+        """
+        pass
