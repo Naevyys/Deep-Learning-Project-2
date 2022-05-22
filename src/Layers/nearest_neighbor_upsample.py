@@ -1,6 +1,6 @@
-from src.module import Module
+from ...src.module import Module
 from torch import empty, cat, arange
-from src.utils import conv2d
+from ...src.utils import conv2d
 
 
 class NNUpsample2d(Module):
@@ -8,8 +8,11 @@ class NNUpsample2d(Module):
     def __init__(self, factor):
         """
         Initialize a nearest neighbor upsample layer
-        :param factor: Upsampling factor
+        :param factor: Upsampling factor, positive int
         """
+
+        assert isinstance(factor, int), "Factor must be an integer!"
+        assert factor > 0, "Factor must be positive!"
 
         self.factor = factor
         self.n_channels = None
