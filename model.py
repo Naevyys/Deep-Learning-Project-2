@@ -1,7 +1,7 @@
 import torch  # Only to disable autograd
 from torch import empty
-import time
-import datetime
+from datetime import datetime
+import time as time
 import os
 import pathlib
 
@@ -26,8 +26,9 @@ class Model():
         self.Sigmoid = Sigmoid
         # TODO add Upsampling
         self.Sequential = Sequential(Conv2d(3,3,3,1,1,1,True), ReLU(), Conv2d(3,3,3,1,1,1,True), Sigmoid())
+        self.criterion = MSELoss()
 
-        self.lr = 1e-3 
+        self.lr = 1e5 
         self.batch_size = None
         self.eval_step = 5
         self.best_model = None
@@ -46,7 +47,7 @@ class Model():
         """
         # The path needed when used in testing mode 
         self.best_model = self.Sequential
-        params = torch.load(torch.load(self.path+"/bestmodel.pth", map_location = lambda storage, loc: storage))
+        params = torch.load(self.path+"/bestmodel.pth")
         self.best_model.update_param(params)
 
     def train(self, train_input, train_target, num_epochs=20, batch_size=64, validation=0.2):
@@ -87,11 +88,12 @@ class Model():
                 #loss.backward()
                 #optimizer.step()
                 output = self.Sequential(train_img)
-                # TODO Do we really need the loss here?
-                loss = MSELoss.forward(output, target_img)
-                d_loss = MSELoss.backward(output, target_img)
+                loss = self.criterion.forward(output, target_img)
+                loss_grad = self.criterion.backward()
+                # Zero the gradient 
+                self.Sequential.zero_grad() 
                 # Compute the gradient
-                self.Sequential.backward(d_loss)
+                self.Sequential.backward(loss_grad)
                 # Compute the SGD and update the parameters
                 self.optimise(self.Sequential.param())
 
@@ -117,10 +119,10 @@ class Model():
                 val_zip = zip(torch.split(val_input, eva_batch_size), torch.split(val_target, eva_batch_size))
 
                 for train_img, target_img in train_zip:
-                    train_error += MSELoss.forward(self.Sequential(train_img), target_img)
+                    train_error += self.criterion.forward(self.Sequential(train_img), target_img)
 
                 for val_img, val_img_target in val_zip:
-                    val_error +=MSELoss.forward(self.Sequential(val_img), val_img_target)
+                    val_error +=self.criterion.forward(self.Sequential(val_img), val_img_target)
 
                 train_error = train_error / nb_split_train
                 val_error = val_error / nb_split_val
@@ -129,7 +131,7 @@ class Model():
                 self.logs[1].append(train_error)
                 self.logs[2].append(val_error)
 
-                waiting_bar(epoch, num_epochs, (self.logs[1][-1], self.logs[2][-1]))
+                waiting_bar(i=epoch, length=num_epochs, loss=(self.logs[1][-1], self.logs[2][-1]))
 
         # Save the model - path name contains the parameters + date
         date = datetime.now().strftime("%d%m%Y_%H%M%S")
@@ -145,7 +147,7 @@ class Model():
         min = (end - start) // 60
         sec = (end - start) % 60
         print("\nTime taken for training: {:.0f} min {:.0f} s".format(min, sec))
-        del train_input, train_target, train_input, train_target
+        del train_input, train_target
 
     def predict(self, test_input):
         """
@@ -153,7 +155,7 @@ class Model():
         :param test_input: Test input.
         :return: The prediction (torch.Tensor).
         """
-        out = self.Sequential(test_input.float()/255.0)
+        out = self.Sequential(test_input.double()/255.0)
         # Rescale the output between 0 and 255 - need to be optimised though 
         min = out.min()
         max = out.max()-min

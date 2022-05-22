@@ -146,7 +146,7 @@ class Conv2d(Module):
         :return: None
         """
         self.w = updated_params[0]
-        self.bias = updated_params[0]
+        self.bias = updated_params[1]
 
     def zero_grad(self):
         self.dl_dw = empty(size=self.w.size()).double().zero_()

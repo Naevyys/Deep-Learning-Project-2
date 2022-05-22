@@ -95,7 +95,7 @@ def pad(t, p_u, p_d, p_l, p_r):
 
     return p
 
-def waiting_bar(self, i, length, loss):
+def waiting_bar(i, length, loss):
         """
             Simple function that prints a progress/waiting bar + the loss
             :param i: Integer, the current element we are working on

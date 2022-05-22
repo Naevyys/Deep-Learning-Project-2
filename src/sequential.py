@@ -13,7 +13,7 @@ class Sequential(Module):
         self.layers = [x for x in layers]
 
     def __call__(self, args):
-        self.forward(args)
+        return self.forward(args)
     
     def forward(self, x):
         """
@@ -37,7 +37,7 @@ class Sequential(Module):
 
         # Iterate on the layers
         d_loss = loss 
-        for layer in self.layers.reverse():
+        for layer in reversed(self.layers):
             d_loss = layer.backward(d_loss)
 
     def param(self): 
@@ -56,3 +56,11 @@ class Sequential(Module):
 
         for layer, param in zip(self.layers, updated_params):
             layer.update_param(param)
+
+    def zero_grad(self):
+        """
+        Zero the gradients of the parameters of the module.
+        :return: None
+        """
+        for layer in self.layers:
+            layer.zero_grad()
