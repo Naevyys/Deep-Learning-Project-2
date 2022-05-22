@@ -1,5 +1,5 @@
 from torch import empty, cat, arange
-from module import Module
+from .module import Module
 
 class Sequential(Module):
 
@@ -12,10 +12,10 @@ class Sequential(Module):
 
         self.layers = [x for x in layers]
 
-    def __call__(self, *args):
-        self.forward(*args)
+    def __call__(self, args):
+        self.forward(args)
     
-    def forward(self, *x):
+    def forward(self, x):
         """
         Compute the forward pass of the model
         : params x: Tensor, or list of tensors containing the data which the model needs to predict

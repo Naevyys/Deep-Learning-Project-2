@@ -1,4 +1,4 @@
-from src.module import Module
+from ...src.module import Module
 from torch import empty
 
 
