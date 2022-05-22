@@ -321,7 +321,7 @@ class TestConv2d(TestCase):
         width = 10
 
         # Convolution parameters for testing
-        kernel_size = 2
+        kernel_size = 3
         out_channels = 3
         bias = False
         stride = 3
@@ -365,7 +365,7 @@ class TestConv2d(TestCase):
         width = 10
 
         # Convolution parameters for testing
-        kernel_size = 2
+        kernel_size = 3
         out_channels = 3
         bias = False
         stride = (3, 2)
@@ -1200,7 +1200,7 @@ class TestConv2d(TestCase):
         padding = 0
 
         # Convolution 2 parameters for testing
-        kernel_size2 = 2
+        kernel_size2 = 3
         out_channels2 = 5
         bias2 = False
         stride2 = (3, 2)

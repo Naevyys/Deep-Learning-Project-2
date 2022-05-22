@@ -11,7 +11,8 @@ class Conv2d(Module):
         :param in_channels: Number of input channels
         :param out_channels: Number of output channels
         :param kernel_size: Size of the kernel
-        :param stride: Stride of the kernel, default is 1.
+        :param stride: Stride of the kernel, default is 1. We require stride <= kernel_size elementwise for the backward
+                       pass to work correctly.
         :param dilation: Dilation of the kernel, default is 1.
         :param bias: Whether to include a bias term or not. Default True.
         """
@@ -48,6 +49,8 @@ class Conv2d(Module):
         self.dilation = (dilation, dilation) if isinstance(dilation, int) else dilation
         self.has_bias = bias
 
+        assert self.stride[0] <= self.kernel_size[0] and self.stride[1] <= self.kernel_size[1], "Stride > kernel_size is not supported in the backward pass!"
+
         # Initialize w and bias
         self.w = empty(size=(self.out_channels, self.in_channels, self.kernel_size[0], self.kernel_size[1])).double().random_() / 2**53
         if bias:
@@ -73,7 +76,7 @@ class Conv2d(Module):
 
         assert self.x_previous_layer is not None, "Cannot perform backward pass if no forward pass was performed first!"
 
-        dl_ds = gradwrtoutput[0]
+        dl_ds = gradwrtoutput[0]  # Same story as in the forward pass
         x = self.x_previous_layer
         is_3D = True if len(x.shape) == 3 else False
 
