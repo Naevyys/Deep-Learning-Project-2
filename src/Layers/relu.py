@@ -14,7 +14,7 @@ class ReLU(Module):
         :param inputs: Tensor, input of the layer.
         :return: Tensor after applying relu to each value of the tensor.
         """
-        x = inputs[0]
+        x = inputs[0].double()
         self.x_previous_layer = x
         # If condition is satisfied, keep original value, else set to 0
         return x.where(x > 0, empty(size=(1,)).double().zero_())  # Needs a tensor with a double for .where() method

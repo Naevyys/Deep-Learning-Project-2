@@ -14,7 +14,7 @@ class Sigmoid(Module):
         :param inputs: Tensor, input of the layer.
         :return: Tensor after applying sigmoid to each value of the tensor.
         """
-        x = inputs[0]
+        x = inputs[0].double()
         self.x_previous_layer = x
         return 1 / (1 + (-x).exp())
 

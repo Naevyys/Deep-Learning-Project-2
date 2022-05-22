@@ -21,6 +21,7 @@ class Model():
         :return: None
         """
         
+        torch.set_default_dtype(torch.float64)
         self.Conv2d = Conv2d
         self.ReLU = ReLU
         self.Sigmoid = Sigmoid
@@ -46,9 +47,10 @@ class Model():
         :return: None
         """
         # The path needed when used in testing mode 
-        self.best_model = self.Sequential
+        #self.best_model = self.Sequential
         params = torch.load(self.path+"/bestmodel.pth")
-        self.best_model.update_param(params)
+        #self.best_model.update_param(params)
+        self.Sequential.update_param(params)
 
     def train(self, train_input, train_target, num_epochs=20, batch_size=64, validation=0.2):
         """

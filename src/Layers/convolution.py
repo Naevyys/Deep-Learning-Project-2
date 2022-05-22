@@ -49,7 +49,7 @@ class Conv2d(Module):
         self.has_bias = bias
 
         # Initialize w and bias
-        self.w = empty(size=(self.out_channels, self.in_channels, self.kernel_size[0], self.kernel_size[1])).double().random_() / 2**53
+        self.weight = empty(size=(self.out_channels, self.in_channels, self.kernel_size[0], self.kernel_size[1])).double().random_() / 2**53
         if bias:
             self.bias = empty(size=(self.out_channels,)).double().random_() / 2**53
         else:
@@ -57,7 +57,7 @@ class Conv2d(Module):
 
         # Initialize parameters that do not have values yet.
         self.x_previous_layer = None
-        self.dl_dw = empty(size=self.w.size()).double().zero_()
+        self.dl_dw = empty(size=self.weight.size()).double().zero_()
         self.dl_db = empty(size=self.bias.size()).double().zero_()
 
     def forward(self, *inputs):
@@ -65,8 +65,8 @@ class Conv2d(Module):
         # We assume that we only receive a single tensor of size (batch_size, in_channels, height, width) or
         # (in_channels, height, width), which we extract with inputs[0]
 
-        self.x_previous_layer = inputs[0]  # Store output of previous layer during forward pass, to be used in the backward pass
-        return conv2d(self.x_previous_layer, self.w, bias=self.bias, stride=self.stride, padding=self.padding, dilation=self.dilation)
+        self.x_previous_layer = inputs[0].double()  # Store output of previous layer during forward pass, to be used in the backward pass
+        return conv2d(self.x_previous_layer, self.weight, bias=self.bias, stride=self.stride, padding=self.padding, dilation=self.dilation)
 
     def backward(self, *gradwrtoutput):
         # Note: the update is performed by the optimizer
@@ -123,7 +123,7 @@ class Conv2d(Module):
                                                               self.x_previous_layer.size(dim=-2),
                                                               self.x_previous_layer.size(dim=-1))
 
-        w_rotated = self.w.transpose(0, 1).rot90(2, [-2, -1])
+        w_rotated = self.weight.transpose(0, 1).rot90(2, [-2, -1])
         res = conv2d(kernel, w_rotated, padding=((self.kernel_size[0] - self.padding[0]) * self.dilation[0] - self.dilation[0],
                                                  (self.kernel_size[1] - self.padding[1]) * self.dilation[1] - self.dilation[1]),
                      dilation=self.dilation)
@@ -137,7 +137,7 @@ class Conv2d(Module):
         and, then the second element of the list is the bias and its derivative. 
         : returns: The list of parameter described above. 
         """
-        return [(self.w, self.dl_dw), (self.bias, self.dl_db)]
+        return [(self.weight, self.dl_dw), (self.bias, self.dl_db)]
 
     def update_param(self, updated_params):
         """
@@ -145,9 +145,9 @@ class Conv2d(Module):
         :params updated_params: A list containing first the weights, and second the bias
         :return: None
         """
-        self.w = updated_params[0]
+        self.weight = updated_params[0]
         self.bias = updated_params[1]
 
     def zero_grad(self):
-        self.dl_dw = empty(size=self.w.size()).double().zero_()
+        self.dl_dw = empty(size=self.weight.size()).double().zero_()
         self.dl_db = empty(size=self.bias.size()).double().zero_()
