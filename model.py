@@ -60,8 +60,8 @@ class Model():
         self.batch_size = batch_size
         # Custom train/validation split - Start by shuffling and sending to GPU is available 
         idx = torch.randperm(train_input.size()[0])
-        train_input = train_input[idx, :, :, :]
-        train_target = train_target[idx, :, :, :]
+        train_input = train_input[idx, :, :, :].to(torch.float64)
+        train_target = train_target[idx, :, :, :].to(torch.float64)
         # Then take the last images as validation set (w.r.t. proportion)
         split = int(validation * train_input.size(0))
         # Training data is standardized by the DataLoader 
