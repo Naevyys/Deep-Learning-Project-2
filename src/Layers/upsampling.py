@@ -55,7 +55,7 @@ class Upsampling(Module):
         padding_ = dilation * (kernel_size - 1) - padding if transposeconvargs else padding
 
         self.upsample = NNUpsample2d(factor_)
-        self.conv2d = Conv2d(in_channels, out_channels, kernel_size, stride=stride_, dilation=dilation, padding=padding_)
+        self.conv2d = Conv2d(in_channels, out_channels, kernel_size, stride=stride_, dilation=dilation, padding=padding_, bias=bias)
 
     def forward(self, *inputs):
         return self.conv2d(self.upsample(*inputs))
