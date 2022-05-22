@@ -1,56 +1,67 @@
-from src.module import Module
-from convolution import Conv2d
-from nearest_neighbor_upsample import NNUpsample2d
+from ...src.module import Module
+from ...src.Layers.convolution import Conv2d
+from ...src.Layers.nearest_neighbor_upsample import NNUpsample2d
 
 
 class Upsampling(Module):
-    def __init__(self, factor, in_channels, out_channels, **convargs):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, dilation=1, padding=1, bias=True,
+                 transposeconvargs=True, factor=None):
         """
         Initialize an upsampling block layer, which is composed of an Upsample layer followed by a Conv2d layer.
-        :param factor: Upsampling factor for Upsample layer
-        :param in_channels: Number of channels of the samples input to the Upsampling layer (same as for Conv2d layer)
-        :param out_channels: Number of channels of the output of the Upsampling layer (same as for Conv2d layer)
-        :param convargs: Additional, optional arguments for the convolution layer: stride, dilation, bias.
-                         Note that kernel_size and padding are computed automatically from the arguments given to keep
-                         the output size of the Conv2d layer the same as the output size of the Upsample layer.
+        The goal of this layer is to substitude a transpose convolution layer, so it will take arguments equivalent to
+        the transpose convolution arguments, e.g. if you pass a stride, il will correspond to a stride value of a
+        transpose convolution layer. This means that the output shape of the Upsampling layer is expected to be the same
+        as the output shape of a transpose convolution with the same arguments (with output_padding = stride - 1).
+        Note: If you do not keep the dilation argument to 1, the output is not guaranteed to have the same shape as for
+        a transpose convolution, as we were unable to correctly figure out the equivalence for this parameter.
+        This is the implemented equivalence of transpose convolution arguments to NNUpsample2d and Conv2d arguments
+        ( > layer argument == mapping of Upsampling argument):
+        [NNUpsample2d]
+          > factor == stride*dilation
+        [Conv2d]
+          > in_channels == in_channels
+          > out_channels == out_channels
+          > kernel_size == kernel_size
+          > stride == dilation
+          > dilation == dilation
+          > padding == dilation * (kernel_size - 1) - padding
+          > bias == bias
+        Note that the kernel_size, dilation and padding must satisfy dilation*(kernel_size - 1) - padding >= 1 .
+        Please set 'transposeconvargs' to False and pass a factor > 0 if you want the arguments passed to correspond to
+        the standard convolution arguments of the Conv2d following the NNUpsample2d.
+        :param in_channels: Number of input channels
+        :param out_channels: Number of output channels
+        :param kernel_size: Size of the kernel
+        :param stride: Stride value (int or tuple of int)
+        :param dilation: Dilation value (int or tuple of ints)
+        :param padding: Padding value (int or tuple of ints).
+        :param bias: True if we want a bias.
+        :param transposeconvargs: True if arguments passed correspond to transpose convolution arguments.
+        :param factor: Upsampling factor for Upsample layer, required if transposeconvargs is False.
         """
 
-        assert set(convargs.keys()).issubset({"stride", "dilation", "bias"}), "Please pass only arguments in the set " \
-                                                                              "{stride, dilation, bias} to the Conv2d!"
+        if transposeconvargs:
+            assert dilation*(kernel_size - 1) - padding >= 1, "You do not satisfy dilation*(kernel_size - 1) - padding >= 1, this results in negative padding!"
+            # Other assertions are already done in the respective layers.
 
-        self.upsample = NNUpsample2d(factor)
+        factor_ = stride*dilation if transposeconvargs else factor
+        stride_ = dilation if transposeconvargs else stride
+        padding_ = dilation * (kernel_size - 1) - padding if transposeconvargs else padding
 
-        # Compute the kernel size and padding of Conv2d to have the output size match the output size of Upsample
-        kernel_size = ...  # TODO
-        padding = ...  # TODO
-
-        self.conv2d = Conv2d(in_channels, out_channels, kernel_size, padding=padding, **convargs)
-        self.x_previous_layer = None
-
-        # Output shape of Upsample + Conv2d is (
-        #   batch_size,
-        #   out_channels,
-        #   (height*factor + 2*padding[0] - dilation[0] * (kernel_size[0] - 1) - 1) // stride[0] + 1
-        #   (width*factor + 2*padding[1] - dilation[1] * (kernel_size[1] - 1) - 1) // stride[1] + 1
-        # )
-
-        # Output shape of TransposeConv2d is (
-        #   batch_size,
-        #   out_channels,
-        #   (height - 1) * stride[0] - 2*padding[0] + dilation[0] * (kernel_size[0] - 1) + output_padding[0] + 1
-        #   (width - 1) * stride[1] - 2*padding[1] + dilation[1] * (kernel_size[1] - 1) + output_padding[1] + 1
-        # )
+        self.upsample = NNUpsample2d(factor_)
+        self.conv2d = Conv2d(in_channels, out_channels, kernel_size, stride=stride_, dilation=dilation, padding=padding_, bias=bias)
 
     def forward(self, *inputs):
-        self.x_previous_layer = inputs[0]
         return self.conv2d(self.upsample(*inputs))
 
     def backward(self, *gradwrtoutput):
         return self.upsample.backward(self.conv2d.backward(*gradwrtoutput))
 
     def param(self):
-        return [self.upsample.param(), self.conv2d.param()]
-        # TODO Quentin: this gives a list with an empty and a non-empty list, check if this is what you want/need
+        return self.conv2d.param()
 
-    def update_param(self, updated_params):
+    def update_param(self, updated_params): 
         self.conv2d.update_param(updated_params)
+
+    def zero_grad(self):
+        self.conv2d.zero_grad()

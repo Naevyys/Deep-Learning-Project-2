@@ -5,7 +5,7 @@ torch.set_grad_enabled(False)
 
 class Module(object):
     def __call__(self, *args):
-        self.forward(*args)
+        return self.forward(*args)
 
     def forward(self, *inputs):
         """

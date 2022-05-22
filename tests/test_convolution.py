@@ -17,7 +17,7 @@ def run_forward_test(batch_size, in_channels, height, width, kernel_size, out_ch
     actual = tested_conv2d.forward(x)  # Returns a tuple with one element
 
     # Compute expected result
-    weights = tested_conv2d.w  # Retrieve randomly initialized weights from convolution layer
+    weights = tested_conv2d.weight  # Retrieve randomly initialized weights from convolution layer
     bias_vals = tested_conv2d.bias if bias else None  # Retrieve randomly initialized bias from convolution layer if any
     expected = conv2d(x, weights, bias=bias_vals, stride=stride, dilation=dilation, padding=padding)
 
@@ -47,7 +47,7 @@ def run_backward_test_dl_dw_and_dl_db(batch_size, in_channels, height, width, ke
     tested_conv2d.forward(x)
 
     # Initialize a torch convolution and call forward
-    w, b = tested_conv2d.w, tested_conv2d.bias
+    w, b = tested_conv2d.weight, tested_conv2d.bias
     torch_conv = torch.nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, bias=bias, stride=stride,
                                  dilation=dilation, padding=padding)
     torch_conv.weight, torch_conv.bias = torch.nn.Parameter(w), torch.nn.Parameter(b)
@@ -119,8 +119,8 @@ def run_backward_test_dl_dx_previous_layer_indirectly(batch_size, in_channels, h
     tested_conv2d2.forward(tested_conv2d.forward(x))
 
     # Initialize a torch convolution and call forward
-    w, b = tested_conv2d.w, tested_conv2d.bias
-    w2, b2 = tested_conv2d2.w, tested_conv2d2.bias
+    w, b = tested_conv2d.weight, tested_conv2d.bias
+    w2, b2 = tested_conv2d2.weight, tested_conv2d2.bias
     torch_conv = torch.nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, bias=bias, stride=stride,
                                  dilation=dilation, padding=padding)
     torch_conv.weight, torch_conv.bias = torch.nn.Parameter(w), torch.nn.Parameter(b)
@@ -321,7 +321,7 @@ class TestConv2d(TestCase):
         width = 10
 
         # Convolution parameters for testing
-        kernel_size = 2
+        kernel_size = 3
         out_channels = 3
         bias = False
         stride = 3
@@ -365,7 +365,7 @@ class TestConv2d(TestCase):
         width = 10
 
         # Convolution parameters for testing
-        kernel_size = 2
+        kernel_size = 3
         out_channels = 3
         bias = False
         stride = (3, 2)
@@ -1200,7 +1200,7 @@ class TestConv2d(TestCase):
         padding = 0
 
         # Convolution 2 parameters for testing
-        kernel_size2 = 2
+        kernel_size2 = 3
         out_channels2 = 5
         bias2 = False
         stride2 = (3, 2)

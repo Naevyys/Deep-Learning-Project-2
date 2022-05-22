@@ -6,6 +6,7 @@ import os
 import pathlib
 
 from .src.Layers.convolution import Conv2d
+from .src.Layers.upsampling import Upsampling
 from .src.Layers.relu import ReLU
 from .src.Layers.sigmoid import Sigmoid 
 from .src.sequential import Sequential
@@ -25,8 +26,13 @@ class Model():
         self.Conv2d = Conv2d
         self.ReLU = ReLU
         self.Sigmoid = Sigmoid
-        # TODO add Upsampling
-        self.Sequential = Sequential(Conv2d(3,3,3,1,1,1,True), ReLU(), Conv2d(3,3,3,1,1,1,True), Sigmoid())
+        self.Upsampling = Upsampling
+        #self.Sequential = Sequential(Conv2d(3,3,3,1,1,1,True), ReLU(), Conv2d(3,3,3,1,1,1,True), Sigmoid())
+        self.Sequential = Sequential(
+            Conv2d(in_channels=3, out_channels=6, stride=2, padding=1, dilation=1, kernel_size=3), ReLU(),
+            Conv2d(in_channels=6, out_channels=9, stride=2, padding=1, dilation=1, kernel_size=3), ReLU(),
+            Upsampling(factor=2, in_channels=9, out_channels=6, kernel_size=3, transposeconvargs=False), ReLU(),
+            Upsampling(factor=2, in_channels=6, out_channels=3, kernel_size=3, transposeconvargs=False) , Sigmoid())
         self.criterion = MSELoss()
 
         self.lr = 1e5 
@@ -84,11 +90,6 @@ class Model():
             # Shuffle the dataset at each epoch TODO check if faster to call data_iter for each batch
             for train_img, target_img in zip(torch.split(train_input, batch_size),
                                              torch.split(train_target, batch_size)):
-                # TODO implement the equivalent
-                #loss = criterion(output, target_img)
-                #self.model.zero_grad()
-                #loss.backward()
-                #optimizer.step()
                 output = self.Sequential(train_img)
                 loss = self.criterion.forward(output, target_img)
                 loss_grad = self.criterion.backward()
