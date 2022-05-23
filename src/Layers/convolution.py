@@ -51,10 +51,17 @@ class Conv2d(Module):
 
         assert self.stride[0] <= self.kernel_size[0] and self.stride[1] <= self.kernel_size[1], "Stride > kernel_size is not supported in the backward pass!"
 
-        # Initialize w and bias
-        self.weight = empty(size=(self.out_channels, self.in_channels, self.kernel_size[0], self.kernel_size[1])).double().random_() / 2**53
+        # Initialize weights and bias according to Xavier Glorot's method
+        # Get the number of inputs and outputs depending on input/output channels and receptive field/kernel size 
+        fan_in = self.in_channels*self.kernel_size[0]*self.kernel_size[1]
+        fan_out = self.out_channels*self.kernel_size[0]*self.kernel_size[1]
+        bound = empty(1).fill_(6.0/float(fan_in+fan_out)).sqrt() 
+
+        #self.weight = empty(size=(self.out_channels, self.in_channels, self.kernel_size[0], self.kernel_size[1])).double().random_() / 2**53
+        self.weight = empty(size=(self.out_channels, self.in_channels, self.kernel_size[0], self.kernel_size[1])).double().uniform_(-bound[0], bound[0])
         if bias:
-            self.bias = empty(size=(self.out_channels,)).double().random_() / 2**53
+            bound = empty(1).fill_(2.0/float(self.in_channels+self.out_channels)).sqrt()
+            self.bias = empty(size=(self.out_channels,)).double().uniform_(-bound[0], bound[0])
         else:
             self.bias = empty(size=(self.out_channels,)).double().zero_()
 

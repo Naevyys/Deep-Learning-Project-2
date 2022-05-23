@@ -24,7 +24,7 @@ class Sigmoid(Module):
         :param x: Tensor w.r.t. which we compute the derivative.
         :return: Derivative of the activation.
         """
-        return -x.exp() / (-x.exp()+1) ** 2
+        return x.exp() / (x.exp()+1) ** 2
 
     def backward(self, *gradwrtoutput):
         dl_dx = gradwrtoutput[0]
