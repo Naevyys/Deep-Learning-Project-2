@@ -35,7 +35,7 @@ class Model():
             Upsampling(factor=2, in_channels=6, out_channels=3, kernel_size=3, transposeconvargs=False) , Sigmoid())
         self.criterion = MSELoss()
 
-        self.lr = 1e5 
+        self.lr = 1e2 
         self.batch_size = None
         self.eval_step = 5
         self.best_model = None
@@ -183,7 +183,7 @@ class Model():
                     # Use the update rule from the stochastic descend gradient
                     # Thre gradient already contains the sum of all input from the batch
                     # We need to normalise (or get the average) by dividing by the batch size
-                    param -= self.lr*gradient/self.batch_size
+                    param = param - self.lr*gradient/self.batch_size
                     intermediate_param.append(param)
                 updated_params.append(intermediate_param)
             else:
