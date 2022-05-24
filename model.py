@@ -5,6 +5,7 @@ import time as time
 import os
 import pathlib
 
+from .src.sgd import SGD
 from .src.Layers.convolution import Conv2d
 from .src.Layers.upsampling import Upsampling
 from .src.Layers.relu import ReLU
@@ -22,7 +23,10 @@ class Model():
         :return: None
         """
         
+        # It avoids precision problems, as well as conversion 
         torch.set_default_dtype(torch.float64)
+        
+        self.SGD = SGD(lr=1e1, batch_size=32)
         self.Conv2d = Conv2d
         self.ReLU = ReLU
         self.Sigmoid = Sigmoid
@@ -35,8 +39,6 @@ class Model():
             Upsampling(factor=2, in_channels=6, out_channels=3, kernel_size=3, transposeconvargs=False) , Sigmoid())
         self.criterion = MSELoss()
 
-        self.lr = 1e1 
-        self.batch_size = None
         self.eval_step = 5
         #self.best_model = None
         self.path = str(pathlib.Path(__file__).parent.resolve())
@@ -82,7 +84,7 @@ class Model():
         :return: None
         """
         # Update the batch size 
-        self.batch_size = batch_size
+        self.SGD.batch_size = batch_size
         # Custom train/validation split - Start by shuffling and sending to GPU is available 
         idx = torch.randperm(train_input.size()[0])
         train_input = train_input[idx, :, :, :].to(torch.float64)
@@ -114,7 +116,9 @@ class Model():
                 # Compute the gradient
                 self.Sequential.backward(loss_grad)
                 # Compute the SGD and update the parameters
-                self.optimise(self.Sequential.param())
+                updated_params = self.SGD.step(self.Sequential.param())
+                # Assign the newly calculated parameters
+                self.Sequential.update_param(updated_params)
 
 
             # Evaluate the model every eval_step
@@ -146,15 +150,15 @@ class Model():
                 train_error = train_error / nb_split_train
                 val_error = val_error / nb_split_val
 
-                self.logs[0].append(epoch)
+                self.logs[0].append(epoch+1)
                 self.logs[1].append(train_error)
                 self.logs[2].append(val_error)
 
-                waiting_bar(i=epoch, length=num_epochs, loss=(self.logs[1][-1], self.logs[2][-1]))
+                waiting_bar(i=epoch+1, length=num_epochs, loss=(self.logs[1][-1], self.logs[2][-1]))
 
         # Save the model - path name contains the parameters + date
         date = datetime.now().strftime("%d%m%Y_%H%M%S")
-        path = str(self.lr) + "_" + str(self.batch_size) + "_" + date + ".pth"
+        path = str(self.SGD.lr) + "_" + str(self.SGD.batch_size) + "_" + date + ".pth"
 
         torch.save(self.Sequential.param(), self.path +"/outputs/trained_models/"+ path)
         # Save the logs as well
@@ -179,34 +183,6 @@ class Model():
         min = out.min()
         max = out.max()-min
         return ((out - min ) / (max))*255
-
-    def optimise(self, list_params): 
-        """
-        Run the stochastic gradient descent and update the parameters of the model
-        : list_params: List of list of tuples of tensors (weights, gradient)
-            First list contains the layers, the second list contains tuples (weights, gradient)
-            of the different parameters of the given layer
-        :return: None
-        """
-        updated_params = []
-        # Iterate on the layer's parameters  
-        for layer_param in list_params:
-            # Check whether the list is empty 
-            if layer_param:
-                intermediate_param = []
-                # Iterate on the parameters of the layer
-                for param, gradient in layer_param:
-                    # Use the update rule from the stochastic descend gradient
-                    # Thre gradient already contains the sum of all input from the batch
-                    # We need to normalise (or get the average) by dividing by the batch size
-                    param = param - self.lr*gradient/self.batch_size
-                    intermediate_param.append(param)
-                updated_params.append(intermediate_param)
-            else:
-                # If no parameters, just return an empty list
-                updated_params.append([])
-        # Assign the newly calculated parameters
-        self.Sequential.update_param(updated_params)
 
     def psnr(self, denoised, ground_truth):
         """
