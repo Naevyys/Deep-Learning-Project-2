@@ -53,9 +53,12 @@ class Conv2d(Module):
 
         # Initialize weights and bias according to Xavier Glorot's method
         # Get the number of inputs and outputs depending on input/output channels and receptive field/kernel size 
-        fan_in = self.in_channels*self.kernel_size[0]*self.kernel_size[1]
-        fan_out = self.out_channels*self.kernel_size[0]*self.kernel_size[1]
-        bound = empty(1).fill_(6.0/float(fan_in+fan_out)).sqrt() 
+        #fan_in = self.in_channels*self.kernel_size[0]*self.kernel_size[1]
+        #fan_out = self.out_channels*self.kernel_size[0]*self.kernel_size[1]
+        #bound = empty(1).fill_(6.0/float(fan_in+fan_out)).sqrt() 
+
+        # Torch initialisation
+        bound = empty(1).fill_(1.0/(self.in_channels*self.kernel_size[0]*self.kernel_size[1])).sqrt() 
 
         #self.weight = empty(size=(self.out_channels, self.in_channels, self.kernel_size[0], self.kernel_size[1])).double().random_() / 2**53
         self.weight = empty(size=(self.out_channels, self.in_channels, self.kernel_size[0], self.kernel_size[1])).double().uniform_(-bound[0], bound[0])

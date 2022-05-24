@@ -35,10 +35,10 @@ class Model():
             Upsampling(factor=2, in_channels=6, out_channels=3, kernel_size=3, transposeconvargs=False) , Sigmoid())
         self.criterion = MSELoss()
 
-        self.lr = 1e2 
+        self.lr = 1e1 
         self.batch_size = None
         self.eval_step = 5
-        self.best_model = None
+        #self.best_model = None
         self.path = str(pathlib.Path(__file__).parent.resolve())
         # To store the training logs 
         # First row: the epoch number
@@ -54,11 +54,27 @@ class Model():
         """
         # The path needed when used in testing mode 
         #self.best_model = self.Sequential
-        params = torch.load(self.path+"/bestmodel.pth")
-        #self.best_model.update_param(params)
-        self.Sequential.update_param(params)
+        params_gradient = torch.load(self.path+"/bestmodel.pth")
+        best_params = []
+        # params contain both the parameters and gradient, only extract the parameters
+        # Iterate on the layer's parameters  
+        for layer_param in params_gradient:
+            # Check whether the list is empty 
+            if layer_param:
+                intermediate_param = []
+                # Iterate on the parameters of the layer
+                for param, gradient in layer_param:
+                    intermediate_param.append(param)
+                best_params.append(intermediate_param)
+            else:
+                # If no parameters, just return an empty list
+                best_params.append([])
+        # Assign the newly calculated parameters
+        self.Sequential.update_param(best_params)
 
-    def train(self, train_input, train_target, num_epochs=20, batch_size=64, validation=0.2):
+        #self.best_model.update_param(params)
+
+    def train(self, train_input, train_target, num_epochs=20, batch_size=32, validation=0.2):
         """
         Trains the model.
         :param train_input: Training data.
@@ -88,8 +104,8 @@ class Model():
         for epoch in range(0, num_epochs):
             idx = torch.randperm(nb_images_train)
             # Shuffle the dataset at each epoch TODO check if faster to call data_iter for each batch
-            for train_img, target_img in zip(torch.split(train_input, batch_size),
-                                             torch.split(train_target, batch_size)):
+            for train_img, target_img in zip(torch.split(train_input[idx], batch_size),
+                                             torch.split(train_target[idx], batch_size)):
                 output = self.Sequential(train_img)
                 loss = self.criterion.forward(output, target_img)
                 loss_grad = self.criterion.backward()
@@ -202,7 +218,10 @@ class Model():
 
         assert denoised.shape == ground_truth.shape, "Denoised image and ground truth must have the same shape!"
 
-        mse = torch.mean((denoised - ground_truth) ** 2)
-        return -10 * torch.log10(mse + 10 ** -8)
+        #mse = torch.mean((denoised - ground_truth) ** 2)
+        #return -10 * torch.log10(mse + 10 ** -8)
+
+        assert denoised.shape == ground_truth.shape, "Denoised image and ground truth must have the same shape!"
+        return - 10 * torch.log10(((denoised-ground_truth) ** 2).mean((1, 2, 3))).mean()
     
     
