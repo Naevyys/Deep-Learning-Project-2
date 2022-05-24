@@ -1,6 +1,3 @@
-import torch
-
-
 class SGD():
 
     def __init__(self, lr=1e-2, batch_size=None):

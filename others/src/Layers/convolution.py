@@ -1,6 +1,6 @@
 from ...src.module import Module
 from torch import empty, cat, arange
-from ...src.utils import conv2d, dilate, pad
+from ...src.utils import conv2d, dilate
 
 
 class Conv2d(Module):

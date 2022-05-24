@@ -5,14 +5,14 @@ import time as time
 import os
 import pathlib
 
-from .src.sgd import SGD
-from .src.Layers.convolution import Conv2d
-from .src.Layers.upsampling import Upsampling
-from .src.Layers.relu import ReLU
-from .src.Layers.sigmoid import Sigmoid 
-from .src.sequential import Sequential
-from .src.Loss_functions.mse import MSELoss
-from .src.utils import waiting_bar
+from .others.src.sgd import SGD
+from .others.src.Layers.convolution import Conv2d
+from .others.src.Layers.upsampling import Upsampling
+from .others.src.Layers.relu import ReLU
+from .others.src.Layers.sigmoid import Sigmoid 
+from .others.src.sequential import Sequential
+from .others.src.Loss_functions.mse import MSELoss
+from .others.src.utils import waiting_bar
 
 torch.set_grad_enabled(False)
 
@@ -160,10 +160,10 @@ class Model():
         date = datetime.now().strftime("%d%m%Y_%H%M%S")
         path = str(self.SGD.lr) + "_" + str(self.SGD.batch_size) + "_" + date + ".pth"
 
-        torch.save(self.Sequential.param(), self.path +"/outputs/trained_models/"+ path)
+        torch.save(self.Sequential.param(), self.path +"/others/outputs/trained_models/"+ path)
         # Save the logs as well
         self.logs = torch.tensor(self.logs)
-        torch.save(self.logs, self.path + "/outputs/logs/" + path)
+        torch.save(self.logs, self.path + "/others/outputs/logs/" + path)
 
         # Record and print time
         end = time.time()
