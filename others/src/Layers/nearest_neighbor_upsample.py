@@ -3,7 +3,7 @@ from torch import empty
 from ...src.utils import conv2d
 
 
-class NNUpsample(Module):
+class NNUpsampling(Module):
 
     def __init__(self, scale_factor):
         """

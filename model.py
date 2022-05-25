@@ -10,6 +10,7 @@ from .others.src.Layers.relu import ReLU
 from .others.src.Layers.sigmoid import Sigmoid 
 from .others.src.sequential import Sequential
 from .others.src.Loss_functions.mse import MSELoss
+from .others.src.Layers.nearest_neighbor_upsample import NNUpsampling
 from .others.src.utils import waiting_bar
 
 torch.set_grad_enabled(False)
@@ -24,10 +25,11 @@ class Model():
         # It avoids precision problems, as well as conversion 
         torch.set_default_dtype(torch.float64)
         
-        self.SGD = SGD(lr=1e-2, batch_size=32)
+        self.SGD = SGD(lr=3e-1, batch_size=32)
         self.Conv2d = Conv2d
         self.ReLU = ReLU
         self.Sigmoid = Sigmoid
+        self.NNUpsampling = NNUpsampling
         self.Upsampling = Upsampling
         #self.Sequential = Sequential(Conv2d(3,3,3,1,1,1,True), ReLU(), Conv2d(3,3,3,1,1,1,True), Sigmoid())
         self.Sequential = Sequential(
@@ -97,9 +99,9 @@ class Model():
 
         # Monitor time taken
         start = time.time()
+        print("Training started!")
         # The loop on the epochs
         for epoch in range(0, num_epochs):
-            self.SGD.lr = 10**(2-epoch)
             idx = torch.randperm(nb_images_train)
             for train_img, target_img in zip(torch.split(train_input[idx], batch_size),
                                              torch.split(train_target[idx], batch_size)):

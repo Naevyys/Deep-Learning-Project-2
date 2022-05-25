@@ -28,7 +28,7 @@ class SGD():
                     # Use the update rule from the stochastic descend gradient
                     # The gradient already contains the sum of all input from the batch
                     # Thus we need to normalise (or get the average) by dividing by the batch size
-                    param = param - self.lr*gradient/self.batch_size
+                    param = param - self.lr*gradient
                     intermediate_param.append(param)
                 updated_params.append(intermediate_param)
             else:

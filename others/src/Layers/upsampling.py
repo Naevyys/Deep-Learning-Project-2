@@ -1,6 +1,6 @@
 from ...src.module import Module
 from ...src.Layers.convolution import Conv2d
-from ...src.Layers.nearest_neighbor_upsample import NNUpsample
+from ...src.Layers.nearest_neighbor_upsample import NNUpsampling
 
 
 class Upsampling(Module):
@@ -47,9 +47,10 @@ class Upsampling(Module):
         factor_ = stride if transposeconvargs else scale_factor
         stride_ = dilation if transposeconvargs else stride
         padding_ = dilation * (kernel_size - 1) - padding if transposeconvargs else padding
+        dilation_ = 1 if transposeconvargs else dilation
 
-        self.upsample = NNUpsample(factor_)
-        self.conv2d = Conv2d(in_channels, out_channels, kernel_size, stride=stride_, dilation=dilation, padding=padding_, bias=bias)
+        self.upsample = NNUpsampling(factor_)
+        self.conv2d = Conv2d(in_channels, out_channels, kernel_size, stride=stride_, dilation=dilation_, padding=padding_, bias=bias)
 
     def forward(self, *inputs):
         return self.conv2d(self.upsample(*inputs))
