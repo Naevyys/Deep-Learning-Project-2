@@ -2,7 +2,7 @@ from ...src.module import Module
 from torch import empty
 
 
-class MSELoss(Module):
+class MSE(Module):
 
     def __init__(self):
         super().__init__()

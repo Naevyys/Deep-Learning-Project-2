@@ -9,7 +9,7 @@ from .others.src.Layers.upsampling import Upsampling
 from .others.src.Layers.relu import ReLU
 from .others.src.Layers.sigmoid import Sigmoid 
 from .others.src.sequential import Sequential
-from .others.src.Loss_functions.mse import MSELoss
+from .others.src.Loss_functions.mse import MSE
 from .others.src.Layers.nearest_neighbor_upsample import NNUpsampling
 from .others.src.utils import waiting_bar
 
@@ -37,7 +37,7 @@ class Model():
             Conv2d(in_channels=6, out_channels=9, stride=2, padding=1, dilation=1, kernel_size=3), ReLU(),
             Upsampling(scale_factor=2, in_channels=9, out_channels=6, kernel_size=3, transposeconvargs=False), ReLU(),
             Upsampling(scale_factor=2, in_channels=6, out_channels=3, kernel_size=3, transposeconvargs=False) , Sigmoid())
-        self.criterion = MSELoss()
+        self.MSE = MSE()
 
         self.eval_step = 1
         self.path = str(pathlib.Path(__file__).parent.resolve())
@@ -108,8 +108,8 @@ class Model():
                 # Compute the predictions from the model
                 output = self.Sequential(train_img)
                 # Compute the loss from the predictions
-                loss = self.criterion.forward(output, target_img)
-                loss_grad = self.criterion.backward()
+                loss = self.MSE.forward(output, target_img)
+                loss_grad = self.MSE.backward()
                 # Zero the gradient 
                 self.Sequential.zero_grad() 
                 # Compute the gradient
@@ -141,10 +141,10 @@ class Model():
                 val_zip = zip(torch.split(val_input, eva_batch_size), torch.split(val_target, eva_batch_size))
 
                 for train_img, target_img in train_zip:
-                    train_error += self.criterion.forward(self.Sequential(train_img), target_img)
+                    train_error += self.MSE.forward(self.Sequential(train_img), target_img)
 
                 for val_img, val_img_target in val_zip:
-                    val_error +=self.criterion.forward(self.Sequential(val_img), val_img_target)
+                    val_error +=self.MSE.forward(self.Sequential(val_img), val_img_target)
 
                 train_error = train_error / nb_split_train
                 val_error = val_error / nb_split_val
