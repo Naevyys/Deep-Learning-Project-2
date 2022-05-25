@@ -1,7 +1,6 @@
 import torch  # Only to disable autograd
 from datetime import datetime
 import time as time
-import os
 import pathlib
 
 from .others.src.sgd import SGD
@@ -25,7 +24,7 @@ class Model():
         # It avoids precision problems, as well as conversion 
         torch.set_default_dtype(torch.float64)
         
-        self.SGD = SGD(lr=1e1, batch_size=32)
+        self.SGD = SGD(lr=1e-2, batch_size=32)
         self.Conv2d = Conv2d
         self.ReLU = ReLU
         self.Sigmoid = Sigmoid
@@ -34,12 +33,11 @@ class Model():
         self.Sequential = Sequential(
             Conv2d(in_channels=3, out_channels=6, stride=2, padding=1, dilation=1, kernel_size=3), ReLU(),
             Conv2d(in_channels=6, out_channels=9, stride=2, padding=1, dilation=1, kernel_size=3), ReLU(),
-            Upsampling(factor=2, in_channels=9, out_channels=6, kernel_size=3, transposeconvargs=False), ReLU(),
-            Upsampling(factor=2, in_channels=6, out_channels=3, kernel_size=3, transposeconvargs=False) , Sigmoid())
+            Upsampling(scale_factor=2, in_channels=9, out_channels=6, kernel_size=3, transposeconvargs=False), ReLU(),
+            Upsampling(scale_factor=2, in_channels=6, out_channels=3, kernel_size=3, transposeconvargs=False) , Sigmoid())
         self.criterion = MSELoss()
 
-        self.eval_step = 5
-        #self.best_model = None
+        self.eval_step = 1
         self.path = str(pathlib.Path(__file__).parent.resolve())
         # To store the training logs 
         # First row: the epoch number
@@ -54,10 +52,9 @@ class Model():
         :return: None
         """
         # The path needed when used in testing mode 
-        #self.best_model = self.Sequential
         params_gradient = torch.load(self.path+"/bestmodel.pth")
         best_params = []
-        # params contain both the parameters and gradient, only extract the parameters
+        # params contain both the parameters and gradient, only extract the parameters of the best model
         # Iterate on the layer's parameters  
         for layer_param in params_gradient:
             # Check whether the list is empty 
@@ -70,10 +67,9 @@ class Model():
             else:
                 # If no parameters, just return an empty list
                 best_params.append([])
-        # Assign the newly calculated parameters
+        # Assign the best parameters
         self.Sequential.update_param(best_params)
 
-        #self.best_model.update_param(params)
 
     def train(self, train_input, train_target, num_epochs=20, batch_size=32, validation=0.2):
         """
@@ -84,7 +80,7 @@ class Model():
         """
         # Update the batch size 
         self.SGD.batch_size = batch_size
-        # Custom train/validation split - Start by shuffling and sending to GPU is available 
+        # Custom train/validation split - Start by shuffling
         idx = torch.randperm(train_input.size()[0])
         train_input = train_input[idx, :, :, :].to(torch.float64)
         train_target = train_target[idx, :, :, :].to(torch.float64)
@@ -103,11 +99,13 @@ class Model():
         start = time.time()
         # The loop on the epochs
         for epoch in range(0, num_epochs):
+            self.SGD.lr = 10**(2-epoch)
             idx = torch.randperm(nb_images_train)
-            # Shuffle the dataset at each epoch TODO check if faster to call data_iter for each batch
             for train_img, target_img in zip(torch.split(train_input[idx], batch_size),
                                              torch.split(train_target[idx], batch_size)):
+                # Compute the predictions from the model
                 output = self.Sequential(train_img)
+                # Compute the loss from the predictions
                 loss = self.criterion.forward(output, target_img)
                 loss_grad = self.criterion.backward()
                 # Zero the gradient 
@@ -178,10 +176,8 @@ class Model():
         :return: The prediction (torch.Tensor).
         """
         out = self.Sequential(test_input.double()/255.0)
-        # Rescale the output between 0 and 255 - need to be optimised though 
-        min = out.min()
-        max = out.max()-min
-        return ((out - min ) / (max))*255
+        # Rescale the output between 0 and 255  
+        return out.double()*255
 
     def psnr(self, denoised, ground_truth):
         """
@@ -192,9 +188,6 @@ class Model():
         """
 
         assert denoised.shape == ground_truth.shape, "Denoised image and ground truth must have the same shape!"
-
-        #mse = torch.mean((denoised - ground_truth) ** 2)
-        #return -10 * torch.log10(mse + 10 ** -8)
 
         assert denoised.shape == ground_truth.shape, "Denoised image and ground truth must have the same shape!"
         return - 10 * torch.log10(((denoised-ground_truth) ** 2).mean((1, 2, 3))).mean()
