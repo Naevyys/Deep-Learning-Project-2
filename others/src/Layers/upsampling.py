@@ -1,11 +1,11 @@
 from ...src.module import Module
 from ...src.Layers.convolution import Conv2d
-from ...src.Layers.nearest_neighbor_upsample import NNUpsample2d
+from ...src.Layers.nearest_neighbor_upsample import NNUpsample
 
 
 class Upsampling(Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, dilation=1, padding=1, bias=True,
-                 transposeconvargs=True, factor=None):
+                 transposeconvargs=True, scale_factor=None):
         """
         Initialize an upsampling block layer, which is composed of an Upsample layer followed by a Conv2d layer.
         The goal of this layer is to substitude a transpose convolution layer, so it will take arguments equivalent to
@@ -17,7 +17,7 @@ class Upsampling(Module):
         This is the implemented equivalence of transpose convolution arguments to NNUpsample2d and Conv2d arguments
         ( > layer argument == mapping of Upsampling argument):
         [NNUpsample2d]
-          > factor == stride*dilation
+          > scale_factor == stride
         [Conv2d]
           > in_channels == in_channels
           > out_channels == out_channels
@@ -37,18 +37,18 @@ class Upsampling(Module):
         :param padding: Padding value (int or tuple of ints).
         :param bias: True if we want a bias.
         :param transposeconvargs: True if arguments passed correspond to transpose convolution arguments.
-        :param factor: Upsampling factor for Upsample layer, required if transposeconvargs is False.
+        :param scale_factor: Upsampling factor for Upsample layer, required if transposeconvargs is False.
         """
 
         if transposeconvargs:
             assert dilation*(kernel_size - 1) - padding >= 1, "You do not satisfy dilation*(kernel_size - 1) - padding >= 1, this results in negative padding!"
             # Other assertions are already done in the respective layers.
 
-        factor_ = stride*dilation if transposeconvargs else factor
+        factor_ = stride if transposeconvargs else scale_factor
         stride_ = dilation if transposeconvargs else stride
         padding_ = dilation * (kernel_size - 1) - padding if transposeconvargs else padding
 
-        self.upsample = NNUpsample2d(factor_)
+        self.upsample = NNUpsample(factor_)
         self.conv2d = Conv2d(in_channels, out_channels, kernel_size, stride=stride_, dilation=dilation, padding=padding_, bias=bias)
 
     def forward(self, *inputs):

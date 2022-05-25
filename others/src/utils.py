@@ -1,5 +1,5 @@
 from torch import empty
-from torch.nn.functional import fold, unfold
+from torch.nn.functional import unfold
 
 
 def conv2d(x, weight, bias=None, stride=1, padding=0, dilation=1):
@@ -55,7 +55,7 @@ def dilate(t, d_h, d_w):
     d = empty(size=size).double().zero_()
     d_h += 1
     d_w += 1
-    if len(size) == 2:  # TODO: improve code structure here, just take last two dimensions and assign them
+    if len(size) == 2:  
         d[::d_h, ::d_w] = t
     elif len(size) == 3:
         d[:, ::d_h, ::d_w] = t
@@ -71,7 +71,7 @@ def waiting_bar(i, length, loss):
             :param i: Integer, the current element we are working on
             :param length: Integer, the total number of elements we need to work on
             :param loss: Tuple(Float, Float), The training and validation loss of the system
-            :return: Nothing, just print
+            :return: Nothing, just prints
         """
         left = int(30 * i / length)
         right = 30 - left

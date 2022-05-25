@@ -1,5 +1,4 @@
 import torch  # Only to disable autograd
-from torch import empty
 from datetime import datetime
 import time as time
 import os

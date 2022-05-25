@@ -5,8 +5,8 @@ class Sequential(Module):
 
     def __init__(self, *layers):
         """
-        Initiate the class that serves as a container for the different layers of the model
-        : params layers: Modules (Conv, ReLU, Upsampling etc.)
+        Initiate the class that serves as a container for the different layers of the model.
+        : params layers: tuple of Modules (Conv, ReLU, Upsampling etc.)
         :return: None
         """
 
@@ -18,7 +18,7 @@ class Sequential(Module):
     def forward(self, x):
         """
         Compute the forward pass of the model
-        : params x: Tensor, or list of tensors containing the data which the model needs to predict
+        : params x: Tensor, the data which the model needs to predict
         :return predictions: Tensor, the model's predictions
         """
         # Iterate on the layers
@@ -30,7 +30,7 @@ class Sequential(Module):
 
     def backward(self, loss):
         """
-        Compute the backward pass of the model. Each module update its own parameters.
+        Compute the backward pass of the model.
         : params loss: Tensor, the loss computed from the model's predictions
         :return: None 
         """
@@ -50,7 +50,7 @@ class Sequential(Module):
     def update_param(self, updated_params): 
         """
         Update the parameters of the layers after the SGD
-        : params updated_params: A list of parameters for each layer
+        : params updated_params: A list of new/updated parameters for each layer
         :return: None 
         """
 
@@ -59,7 +59,7 @@ class Sequential(Module):
 
     def zero_grad(self):
         """
-        Zero the gradients of the parameters of the module.
+        Zero the gradients of the module's parameters. 
         :return: None
         """
         for layer in self.layers:

@@ -1,5 +1,5 @@
 from ...src.module import Module
-from torch import empty, cat, arange
+from torch import empty
 from ...src.utils import conv2d, dilate
 
 
@@ -51,16 +51,9 @@ class Conv2d(Module):
 
         assert self.stride[0] <= self.kernel_size[0] and self.stride[1] <= self.kernel_size[1], "Stride > kernel_size is not supported in the backward pass!"
 
-        # Initialize weights and bias according to Xavier Glorot's method
-        # Get the number of inputs and outputs depending on input/output channels and receptive field/kernel size 
-        #fan_in = self.in_channels*self.kernel_size[0]*self.kernel_size[1]
-        #fan_out = self.out_channels*self.kernel_size[0]*self.kernel_size[1]
-        #bound = empty(1).fill_(6.0/float(fan_in+fan_out)).sqrt() 
-
-        # Torch initialisation
+        # Torch weights initialisation: based on the number of input channels and kernel size and uniform distribution
         bound = empty(1).fill_(1.0/(self.in_channels*self.kernel_size[0]*self.kernel_size[1])).sqrt() 
 
-        #self.weight = empty(size=(self.out_channels, self.in_channels, self.kernel_size[0], self.kernel_size[1])).double().random_() / 2**53
         self.weight = empty(size=(self.out_channels, self.in_channels, self.kernel_size[0], self.kernel_size[1])).double().uniform_(-bound[0], bound[0])
         if bias:
             bound = empty(1).fill_(2.0/float(self.in_channels+self.out_channels)).sqrt()
@@ -74,6 +67,11 @@ class Conv2d(Module):
         self.dl_db = empty(size=self.bias.size()).double().zero_()
 
     def forward(self, *inputs):
+        """
+        Compute the convolution for the given inputs
+        :param inputs: Tensor of size (batch_size, channels, height, width)
+        :return: Tensor of the convolved inputs
+        """
         # *inputs gives a variable inputs which is a tuple of all nameless parameters passed to the method.
         # We assume that we only receive a single tensor of size (batch_size, in_channels, height, width) or
         # (in_channels, height, width), which we extract with inputs[0]
@@ -82,6 +80,11 @@ class Conv2d(Module):
         return conv2d(self.x_previous_layer, self.weight, bias=self.bias, stride=self.stride, padding=self.padding, dilation=self.dilation)
 
     def backward(self, *gradwrtoutput):
+        """
+        Compute the backward pass of convolution
+        :param inputs: Tensor of the gradient from the next layer
+        :return: Tensor of the convolution's gradient 
+        """
         # Note: the update is performed by the optimizer
 
         assert self.x_previous_layer is not None, "Cannot perform backward pass if no forward pass was performed first!"

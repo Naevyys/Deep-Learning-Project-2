@@ -8,7 +8,7 @@ class MSELoss(Module):
         super().__init__()
         self.inputs = None
 
-    def forward(self, *inputs):  # Compute loss
+    def forward(self, *inputs): 
         """
         Computes the mean squarred error loss.
         :params inputs: A tuple that should contain the prediction of the model and the targets. 
@@ -22,7 +22,7 @@ class MSELoss(Module):
         self.normalizing_term = normalizing_term
         return (predicted - target).pow(2).sum() / normalizing_term
 
-    def backward(self, *gradwrtoutput):  # Compute derivative of the loss
+    def backward(self, *gradwrtoutput):  
         """
         Computes gradient of the mean squarred error loss.
         :params gradwrtouput: Is not used here as the loss function is the first function producing

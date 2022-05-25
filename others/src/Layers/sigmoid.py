@@ -1,5 +1,4 @@
 from ...src.module import Module
-from torch import empty, cat, arange
 
 
 class Sigmoid(Module):
@@ -8,7 +7,7 @@ class Sigmoid(Module):
         super().__init__()
         self.x_previous_layer = None
 
-    def forward(self, *inputs):  # Compute result of activation
+    def forward(self, *inputs):  
         """
         Applies sigmoid activation function (logistic function) to tensor x
         :param inputs: Tensor, input of the layer.
@@ -18,7 +17,7 @@ class Sigmoid(Module):
         self.x_previous_layer = x
         return 1 / (1 + (-x).exp())
 
-    def __derivative(self, x):  # Compute derivative of activation
+    def __derivative(self, x):  
         """
         Computes derivative of the sigmoid activation function.
         :param x: Tensor w.r.t. which we compute the derivative.
@@ -27,6 +26,11 @@ class Sigmoid(Module):
         return x.exp() / (x.exp()+1) ** 2
 
     def backward(self, *gradwrtoutput):
+        """
+        Applies the backward pass to the sigmoid activation function
+        :param gradwrtoutput: Tensor, containing the gradient of the next layer.
+        :return: Tensor of the sigmoid's gradient 
+        """
         dl_dx = gradwrtoutput[0]
         dl_ds = self.__derivative(self.x_previous_layer) * dl_dx if self.x_previous_layer is not None else dl_dx
         return dl_ds

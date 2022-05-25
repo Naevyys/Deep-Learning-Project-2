@@ -13,7 +13,7 @@ class Module(object):
         :param inputs: Tensor or tuple of tensor which are the inputs to forward to the next layer
         :return: Tensor or tuple of tensors.
         """
-        raise NotImplementedError("The forward pass has not been implemented for this layer!") 
+        raise NotImplementedError("The forward pass has not been implemented for this submodule!") 
 
     def backward(self, *gradwrtoutput):
         """
@@ -22,7 +22,7 @@ class Module(object):
         :return: Tensor or tuple of tensors containing the gradient of the loss w.r.t the module's input, backwarded to the previous layer 
         """
         
-        raise NotImplementedError("The backward pass has not been implemented for this layer!") 
+        raise NotImplementedError("The backward pass has not been implemented for this submodule!") 
 
     def param(self):
         """
@@ -35,6 +35,7 @@ class Module(object):
         """
         The function will update the parameters of the sub modules having parameters. For instance convolution.
         It does nothing if the module does not have parameters. 
+        :return: None 
         """
         pass 
 
