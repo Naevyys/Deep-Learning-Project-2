@@ -2,6 +2,7 @@ import torch  # Only to disable autograd
 from datetime import datetime
 import time as time
 import pathlib
+import pickle
 
 from .others.src.sgd import SGD
 from .others.src.Layers.convolution import Conv2d
@@ -54,7 +55,9 @@ class Model():
         :return: None
         """
         # The path needed when used in testing mode 
-        params_gradient = torch.load(self.path+"/bestmodel.pth")
+        #params_gradient = torch.load(self.path+"/bestmodel.pth")
+        with open(self.path+"/bestmodel.pth", "rb") as fp:   # Unpickling
+            params_gradient = pickle.load(fp)
         best_params = []
         # params contain both the parameters and gradient, only extract the parameters of the best model
         # Iterate on the layer's parameters  
@@ -159,10 +162,12 @@ class Model():
         date = datetime.now().strftime("%d%m%Y_%H%M%S")
         path = str(self.SGD.lr) + "_" + str(self.SGD.batch_size) + "_" + date + ".pth"
 
-        torch.save(self.Sequential.param(), self.path +"/others/outputs/trained_models/"+ path)
+        with open(self.path +"/others/outputs/trained_models/"+ path, "wb") as fp: 
+            pickle.dump(self.Sequential.param(), fp)
         # Save the logs as well
         self.logs = torch.tensor(self.logs)
-        torch.save(self.logs, self.path + "/others/outputs/logs/" + path)
+        with open(self.path + "/others/outputs/logs/" + path, "wb") as fp: 
+            pickle.dump(self.logs, fp)
 
         # Record and print time
         end = time.time()
