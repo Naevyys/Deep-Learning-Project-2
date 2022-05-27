@@ -1,9 +1,8 @@
 class SGD():
 
-    def __init__(self, lr=1e-2, batch_size=None):
+    def __init__(self, lr=1e-2):
 
-        self.lr = lr 
-        self.batch_size = batch_size 
+        self.lr = lr
 
 
     def step(self, list_params): 
@@ -14,8 +13,6 @@ class SGD():
             of the different parameters of the given layer
         :return updated_params: A list containing the updated parameters of the network
         """
-
-        assert self.batch_size is not None, "You forgot to assign a batch size in the training function!"
 
         updated_params = []
         # Iterate on the layer's parameters  
