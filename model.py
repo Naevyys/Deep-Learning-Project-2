@@ -26,7 +26,7 @@ class Model():
         # It avoids precision problems, as well as conversion 
         torch.set_default_dtype(torch.float64)
         
-        self.SGD = SGD(lr=3e-1, batch_size=32)
+        self.SGD = SGD(lr=3e-1)
         self.Conv2d = Conv2d
         self.ReLU = ReLU
         self.Sigmoid = Sigmoid
@@ -83,8 +83,6 @@ class Model():
         :param train_target: Train targets.
         :return: None
         """
-        # Update the batch size 
-        self.SGD.batch_size = batch_size
         # Custom train/validation split - Start by shuffling
         idx = torch.randperm(train_input.size()[0])
         train_input = train_input[idx, :, :, :].to(torch.float64)
@@ -160,7 +158,7 @@ class Model():
 
         # Save the model - path name contains the parameters + date
         date = datetime.now().strftime("%d%m%Y_%H%M%S")
-        path = str(self.SGD.lr) + "_" + str(self.SGD.batch_size) + "_" + date + ".pth"
+        path = str(self.SGD.lr) + "_" + str(batch_size) + "_" + date + ".pth"
 
         with open(self.path +"/others/outputs/trained_models/"+ path, "wb") as fp: 
             pickle.dump(self.Sequential.param(), fp)
